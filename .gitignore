@@ -23,3 +23,5 @@ uploads/profile_pictures/*
 .vscode/
 .idea/
 *.swp
+.env
+.env
