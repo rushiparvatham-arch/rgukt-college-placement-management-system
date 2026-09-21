@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RGUKT Ongole | CDPC Placement Portal</title>
+<link rel="icon" href="{{ url_for('static', filename='images/rgukt-logo.png') }}" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}" />
+</head>
+<body>
+
+<div class="container">
+  <nav class="landing-nav">
+    <div class="brand">
+      <img src="{{ url_for('static', filename='images/rgukt-logo.png') }}" alt="RGUKT Ongole logo" />
+      <div>
+        <div class="l1">RGUKT ONGOLE</div>
+        <div class="l2">Career Development &amp; Placement Cell</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <a href="/login" class="btn btn-outline btn-sm">Log In</a>
+      <a href="/login?tab=register" class="btn btn-primary btn-sm">Sign Up</a>
+    </div>
+  </nav>
+
+  <div id="session-banner" class="card card-pad flex items-center justify-between mt-16" style="display:none; border-color: var(--accent-orange);">
+    <span class="sb-text text-sm"></span>
+    <a href="#" class="btn btn-primary btn-sm sb-btn">Go to Dashboard</a>
+  </div>
+
+  <section class="hero">
+    <span class="eyebrow">Placement Season 2026&ndash;27</span>
+    <h1>One portal to run every step of campus <em>placements</em>.</h1>
+    <p class="sub">
+      Build your resume, apply to drives, track interviews and results as a student —
+      or manage the entire placement pipeline as CDPC staff or a recruiting company.
+      Choose how you'd like to continue.
+    </p>
+  </section>
+
+  <div class="role-select-grid">
+    <div class="role-card" onclick="goToLogin('student')">
+      <div class="r-icon" style="background: var(--accent-orange-soft); color: var(--accent-orange);" data-icon="graduation-cap" data-icon-size="24"></div>
+      <h3>Student</h3>
+      <p>Build your resume, browse placement drives, apply to companies, track interviews and check your results.</p>
+      <span class="r-arrow">Continue as Student <span data-icon="chevron-right" data-icon-size="15"></span></span>
+    </div>
+    <div class="role-card" onclick="goToLogin('cdpc')">
+      <div class="r-icon" style="background: var(--accent-blue-soft); color: var(--accent-blue);" data-icon="building-2" data-icon-size="24"></div>
+      <h3>CDPC / Administrator</h3>
+      <p>Manage students, companies, drives and interviews. Publish results and view placement analytics.</p>
+      <span class="r-arrow">Continue as CDPC <span data-icon="chevron-right" data-icon-size="15"></span></span>
+    </div>
+    <div class="role-card" onclick="goToLogin('company')">
+      <div class="r-icon" style="background: var(--accent-green-soft); color: var(--accent-green);" data-icon="briefcase" data-icon-size="24"></div>
+      <h3>Company</h3>
+      <p>Post placement drives, review applicants, browse the eligible student pool and shortlist candidates.</p>
+      <span class="r-arrow">Continue as Company <span data-icon="chevron-right" data-icon-size="15"></span></span>
+    </div>
+  </div>
+
+  <div class="stats-strip">
+    <div class="stat"><b>101+</b><span>Registered Students</span></div>
+    <div class="stat"><b>38+</b><span>Recruiting Companies</span></div>
+    <div class="stat"><b>61%</b><span>Students Placed</span></div>
+    <div class="stat"><b>&#8377;25L</b><span>Highest CTC Offered</span></div>
+  </div>
+
+  <footer class="landing-footer">
+    &copy; 2026 RGUKT Ongole — Career Development &amp; Placement Cell. Built as an academic project.
+  </footer>
+</div>
+
+<div id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/landing.js') }}"></script>
+</body>
+</html>

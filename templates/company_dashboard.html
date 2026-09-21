@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Company Dashboard | RGUKT Ongole Placement Portal</title>
+{% include 'partials/head_common.html' %}
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="{{ url_for('static', filename='images/rgukt-logo.png') }}" alt="RGUKT Ongole logo" />
+      <div class="brand-text"><div class="l1">RGUKT ONGOLE</div><div class="l2">Company Portal</div></div>
+    </div>
+    <div class="sidebar-scroll">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Recruitment</div>
+        <button class="sidebar-link active" data-view="overview"><span class="ic" data-icon="home"></span> Overview</button>
+        <button class="sidebar-link" data-view="drives"><span class="ic" data-icon="clipboard-list"></span> My Drives</button>
+        <button class="sidebar-link" data-view="applicants"><span class="ic" data-icon="send"></span> Applicants</button>
+        <button class="sidebar-link" data-view="students"><span class="ic" data-icon="graduation-cap"></span> Browse Students</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">More</div>
+        <button class="sidebar-link" data-view="help"><span class="ic" data-icon="help-circle"></span> Help</button>
+        <button class="sidebar-link" data-view="about"><span class="ic" data-icon="info"></span> About</button>
+        <button class="sidebar-link" onclick="openLogoutConfirm()"><span class="ic" data-icon="log-out"></span> Logout</button>
+      </div>
+    </div>
+    <div class="sidebar-footer">RGUKT Ongole CDPC © 2026</div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <header class="navbar">
+    <div class="flex items-center gap-12">
+      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn"><span data-icon="menu"></span></button>
+      <div class="navbar-search">
+        <span class="icon-search" data-icon="search" data-icon-size="15"></span>
+        <input type="text" id="navbar-search-input" placeholder="Search students by name..." autocomplete="off" />
+        <div class="search-results" id="search-results"></div>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      {% include 'partials/notification_dropdown.html' %}
+      <div class="dropdown-wrap">
+        <button class="icon-btn" onclick="toggleDropdown('settings-panel')"><span data-icon="settings"></span></button>
+        <div class="dropdown-panel" id="settings-panel" style="width:280px;">
+          <div class="dropdown-header">Settings</div>
+          <div class="profile-dropdown-menu">
+            <button onclick="openModal('change-password-modal')"><span data-icon="settings" data-icon-size="15"></span> Change Password</button>
+            <button onclick="openModal('edit-profile-modal')"><span data-icon="file-text" data-icon-size="15"></span> Edit Profile</button>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-wrap">
+        <button class="navbar-profile" onclick="toggleDropdown('profile-panel')">
+          <span class="avatar js-avatar">--</span>
+          <span class="navbar-profile-meta"><div class="name js-user-name">Loading...</div><div class="role js-user-role">Company</div></span>
+        </button>
+        <div class="dropdown-panel" id="profile-panel" style="width:300px;">
+          <div id="profile-detail-card-mount" class="profile-detail-card"></div>
+          <div class="profile-dropdown-menu">
+            <button onclick="openModal('edit-profile-modal')"><span data-icon="file-text" data-icon-size="15"></span> Edit Profile</button>
+            <div class="divider"></div>
+            <button onclick="openLogoutConfirm()" style="color:var(--accent-red);"><span data-icon="log-out" data-icon-size="15"></span> Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+
+    <!-- OVERVIEW -->
+    <section class="view-section active" id="view-overview">
+      <div class="page-header"><div><h1 id="welcome-heading">Welcome back!</h1><p>Your recruitment activity at RGUKT Ongole.</p></div></div>
+      <div class="stats-grid" id="company-stats-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+      <div class="card card-pad">
+        <div class="flex justify-between items-center mb-16"><h3>Recent Applicants</h3><button class="btn btn-ghost btn-sm" data-view-link="applicants">View all →</button></div>
+        <div id="overview-applicants-list"><div class="loading-row"><div class="spinner"></div></div></div>
+      </div>
+    </section>
+
+    <!-- MY DRIVES -->
+    <section class="view-section" id="view-drives">
+      <div class="page-header"><div><h1>My Drives</h1><p>Manage the roles you're recruiting for.</p></div>
+        <button class="btn btn-primary btn-sm" onclick="openPostDriveModal()"><span data-icon="plus" data-icon-size="15"></span> Post New Drive</button>
+      </div>
+      <div class="grid-cards" id="my-drives-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- APPLICANTS -->
+    <section class="view-section" id="view-applicants">
+      <div class="page-header"><div><h1>Applicants</h1><p>Review and shortlist candidates for your drives.</p></div></div>
+      <div class="filters-bar">
+        <select id="applicants-filter-drive"><option value="">All Drives</option></select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Student</th><th>Branch</th><th>CGPA</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="applicants-tbody"><tr><td colspan="6"><div class="loading-row"><div class="spinner"></div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- BROWSE STUDENTS -->
+    <section class="view-section" id="view-students">
+      <div class="page-header"><div><h1>Browse Students</h1><p>Explore the eligible student pool to simplify shortlisting.</p></div></div>
+      <div class="filters-bar">
+        <input type="number" id="students-min-cgpa" placeholder="Min CGPA" step="0.1" style="width:120px;" />
+        <select id="students-branch-filter">
+          <option value="">All Branches</option>
+          <option>Computer Science & Engineering</option>
+          <option>Electronics & Communication Engineering</option>
+          <option>Electrical & Electronics Engineering</option>
+          <option>Mechanical Engineering</option>
+          <option>Civil Engineering</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="loadBrowseStudents()">Apply Filters</button>
+      </div>
+      <div class="grid-cards" id="browse-students-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- HELP -->
+    <section class="view-section" id="view-help">
+      <div class="page-header"><div><h1>Help &amp; Support</h1><p>Guide for recruiting on the RGUKT Ongole portal.</p></div></div>
+      <div class="card card-pad">
+        <div class="mb-16"><b>How do I post a new drive?</b><p class="text-muted text-sm mt-8">Go to My Drives → Post New Drive. Your posting will be reviewed and made visible by CDPC.</p></div>
+        <div class="mb-16"><b>How do I shortlist a candidate?</b><p class="text-muted text-sm mt-8">Open Applicants, filter by drive, and update the status dropdown next to each candidate.</p></div>
+        <div><b>Can I browse students who haven't applied yet?</b><p class="text-muted text-sm mt-8">Yes — use Browse Students to filter the full eligible pool by CGPA and branch.</p></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="view-section" id="view-about">
+      <div class="page-header"><div><h1>About</h1><p>RGUKT Ongole Career Development &amp; Placement Cell.</p></div></div>
+      <div class="card card-pad">
+        <p class="text-secondary text-sm" style="line-height:1.7;">
+          RGUKT Ongole is one of five IIIT campuses under Rajiv Gandhi University of Knowledge Technologies,
+          Andhra Pradesh. The CDPC facilitates campus placements connecting recruiting companies with
+          talented engineering graduates across Computer Science, Electronics, Electrical, Mechanical and
+          Civil Engineering branches.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="edit-profile-modal">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Profile</h3><button class="modal-close" onclick="closeModal('edit-profile-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body">
+      <div class="profile-picture-upload">
+        <div class="ppu-preview" id="ppu-preview">--</div>
+        <div class="ppu-actions">
+          <div class="ppu-actions-row">
+            <label class="btn btn-outline btn-sm" for="ppu-file-input" style="cursor:pointer;">Upload Photo</label>
+            <button type="button" class="btn btn-ghost btn-sm" id="ppu-remove-btn" style="display:none;">Remove</button>
+          </div>
+          <input type="file" id="ppu-file-input" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+          <span class="ppu-hint">JPG, PNG or WEBP, up to 2 MB.</span>
+        </div>
+      </div>
+      <div class="field"><label>HR Contact Name</label><input type="text" id="ep-name" required /></div>
+      <div class="field"><label>Phone</label><input type="text" id="ep-phone" /></div>
+      <div class="field"><label>Company Name</label><input type="text" id="ep-company-name" /></div>
+      <div class="field-row">
+        <div class="field"><label>Industry</label><input type="text" id="ep-industry" /></div>
+        <div class="field"><label>HR Designation</label><input type="text" id="ep-designation" /></div>
+      </div>
+      <div class="field"><label>Website</label><input type="text" id="ep-website" /></div>
+      <div class="field"><label>Address</label><input type="text" id="ep-address" /></div>
+      <div class="field"><label>About the Company</label><textarea id="ep-about"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('edit-profile-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-profile-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+{% include 'partials/change_password_modal.html' %}
+
+
+<div class="modal-overlay" id="post-drive-modal">
+  <div class="modal-box modal-wide">
+    <div class="modal-header"><h3>Post New Drive</h3><button class="modal-close" onclick="closeModal('post-drive-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body">
+      <div class="field-row">
+        <div class="field"><label>Role Title</label><input type="text" id="pd-role" /></div>
+        <div class="field"><label>Job Type</label><select id="pd-jobtype"><option>Full-Time</option><option>Internship</option></select></div>
+      </div>
+      <div class="field"><label>Description</label><textarea id="pd-description"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>CTC</label><input type="text" id="pd-ctc" placeholder="₹7.0 LPA" /></div>
+        <div class="field"><label>Location</label><input type="text" id="pd-location" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Min CGPA</label><input type="number" step="0.1" id="pd-mincgpa" value="0" /></div>
+        <div class="field"><label>Max Backlogs</label><input type="number" id="pd-maxbacklogs" value="0" /></div>
+      </div>
+      <div class="field"><label>Eligible Branches (comma separated, or "All Branches")</label><input type="text" id="pd-branches" value="All Branches" /></div>
+      <div class="field-row">
+        <div class="field"><label>Drive Date</label><input type="text" id="pd-drivedate" placeholder="15 Sep 2026" /></div>
+        <div class="field"><label>Application Deadline</label><input type="text" id="pd-deadline" placeholder="05 Sep 2026" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('post-drive-modal')">Cancel</button>
+      <button class="btn btn-primary" id="submit-post-drive-btn">Post Drive</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/company.js') }}"></script>
+</body>
+</html>
