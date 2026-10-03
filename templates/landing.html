@@ -3,75 +3,167 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>RGUKT Ongole | CDPC Placement Portal</title>
+<title>RGUKT Ongole | Training &amp; Placement Cell Portal</title>
 <link rel="icon" href="{{ url_for('static', filename='images/rgukt-logo.png') }}" />
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("rgukt-theme");
+    if (!t) t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}" />
 </head>
-<body>
+<body class="landing-page">
 
-<div class="container">
-  <nav class="landing-nav">
-    <div class="brand">
-      <img src="{{ url_for('static', filename='images/rgukt-logo.png') }}" alt="RGUKT Ongole logo" />
+<header class="lp-nav">
+  <div class="lp-nav-inner">
+    <a href="/" class="brand">
+      <img src="{{ url_for('static', filename='images/rgukt-logo.png') }}" alt="RGUKT Ongole" />
       <div>
-        <div class="l1">RGUKT ONGOLE</div>
-        <div class="l2">Career Development &amp; Placement Cell</div>
+        <div class="l1">RGUKT Ongole</div>
+        <div class="l2">Training &amp; Placement Cell</div>
       </div>
-    </div>
+    </a>
     <div class="nav-actions">
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark theme" title="Toggle theme">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
       <a href="/login" class="btn btn-outline btn-sm">Log In</a>
       <a href="/login?tab=register" class="btn btn-primary btn-sm">Sign Up</a>
     </div>
-  </nav>
+  </div>
+</header>
 
-  <div id="session-banner" class="card card-pad flex items-center justify-between mt-16" style="display:none; border-color: var(--accent-orange);">
+<section class="lp-hero" id="lp-hero">
+  <div class="lp-hero-media" data-parallax="bg" aria-hidden="true">
+    <img src="{{ url_for('static', filename='images/campus-hero.jpg') }}" alt="" />
+  </div>
+  <div class="lp-hero-parallax-layer" aria-hidden="true">
+    <span class="lp-hero-orb o1" data-parallax="orb" data-speed="0.18"></span>
+    <span class="lp-hero-orb o2" data-parallax="orb" data-speed="0.28"></span>
+    <span class="lp-hero-orb o3" data-parallax="orb" data-speed="0.12"></span>
+  </div>
+  <div class="lp-hero-scrim" aria-hidden="true"></div>
+  <div class="lp-hero-content" data-parallax="content">
+    <span class="lp-glass-chip">Training &amp; Placement Cell</span>
+    <p class="lp-brand-mark">Rajiv Gandhi University of Knowledge Technologies</p>
+    <h1>Elevating Rural Talent to Global Innovation</h1>
+    <p class="lp-hero-sub">The official Training &amp; Placement Cell Portal of RGUKT Ongole — connecting industry leaders with future-ready engineering innovators.</p>
+    <div class="lp-hero-ctas">
+      <a href="/login?role=student" class="btn btn-primary">Student Login</a>
+      <a href="/login?role=company" class="btn btn-hero-ghost">For Recruiters</a>
+    </div>
+  </div>
+  <div class="lp-hero-scroll" aria-hidden="true">
+    <span class="mouse"></span>
+    <span>Scroll</span>
+  </div>
+</section>
+
+<div class="container">
+  <div id="session-banner" class="card card-pad flex items-center justify-between mt-16" style="display:none; border-color: var(--brand);">
     <span class="sb-text text-sm"></span>
     <a href="#" class="btn btn-primary btn-sm sb-btn">Go to Dashboard</a>
   </div>
 
-  <section class="hero">
-    <span class="eyebrow">Placement Season 2026&ndash;27</span>
-    <h1>One portal to run every step of campus <em>placements</em>.</h1>
-    <p class="sub">
-      Build your resume, apply to drives, track interviews and results as a student —
-      or manage the entire placement pipeline as CDPC staff or a recruiting company.
-      Choose how you'd like to continue.
-    </p>
+  <section class="lp-about">
+    <div class="lp-about-copy reveal">
+      <h2>Welcome to the Placement Portal</h2>
+      <p>At RGUKT Ongole, we nurture the top 1% of rural engineering minds through our rigorous 6-year integrated B.Tech curriculum. Driven by academic excellence, hands-on technical proficiency, our students are systematically prepared to step seamlessly into the global technology ecosystem.</p>
+      <p>Our placement portal serves as a unified, transparent gateway connecting industry leaders with future-ready engineering innovators.</p>
+    </div>
+    <figure class="lp-about-visual reveal reveal-delay-1" data-parallax-section>
+      <img src="{{ url_for('static', filename='images/campus-aerial.jpg') }}" alt="Aerial view of the RGUKT Ongole campus" />
+    </figure>
   </section>
 
-  <div class="role-select-grid">
-    <div class="role-card" onclick="goToLogin('student')">
-      <div class="r-icon" style="background: var(--accent-orange-soft); color: var(--accent-orange);" data-icon="graduation-cap" data-icon-size="24"></div>
-      <h3>Student</h3>
-      <p>Build your resume, browse placement drives, apply to companies, track interviews and check your results.</p>
-      <span class="r-arrow">Continue as Student <span data-icon="chevron-right" data-icon-size="15"></span></span>
-    </div>
-    <div class="role-card" onclick="goToLogin('cdpc')">
-      <div class="r-icon" style="background: var(--accent-blue-soft); color: var(--accent-blue);" data-icon="building-2" data-icon-size="24"></div>
-      <h3>CDPC / Administrator</h3>
-      <p>Manage students, companies, drives and interviews. Publish results and view placement analytics.</p>
-      <span class="r-arrow">Continue as CDPC <span data-icon="chevron-right" data-icon-size="15"></span></span>
-    </div>
-    <div class="role-card" onclick="goToLogin('company')">
-      <div class="r-icon" style="background: var(--accent-green-soft); color: var(--accent-green);" data-icon="briefcase" data-icon-size="24"></div>
-      <h3>Company</h3>
-      <p>Post placement drives, review applicants, browse the eligible student pool and shortlist candidates.</p>
-      <span class="r-arrow">Continue as Company <span data-icon="chevron-right" data-icon-size="15"></span></span>
-    </div>
-  </div>
+  <section class="lp-audiences" id="audiences">
+    <article class="lp-audience reveal">
+      <p class="lp-audience-label">For Recruiters</p>
+      <h3>Discover Unmatched Potential</h3>
+      <p>Gain access to a highly competitive, pre-screened talent pool specializing in CSE, ECE, Mechanical, and Civil Engineering. Our students undergo an extensive 2-year foundational pre-university phase followed by 4 years of intensive engineering specialization. This unique pipeline ensures deep logical reasoning, sharp analytical skills, and resilient problem-solving capabilities.</p>
+      <div class="lp-audience-actions">
+        <a href="/login?role=company" class="btn btn-primary btn-sm">Schedule a Campus Drive</a>
+        <a href="#highlights" class="btn btn-outline btn-sm">Download Placement Brochure</a>
+      </div>
+    </article>
 
-  <div class="stats-strip">
-    <div class="stat"><b>101+</b><span>Registered Students</span></div>
-    <div class="stat"><b>38+</b><span>Recruiting Companies</span></div>
-    <div class="stat"><b>61%</b><span>Students Placed</span></div>
-    <div class="stat"><b>&#8377;25L</b><span>Highest CTC Offered</span></div>
-  </div>
+    <article class="lp-audience reveal reveal-delay-1">
+      <p class="lp-audience-label">For Students</p>
+      <h3>Engineered for the Future</h3>
+      <p>Your transition from campus to corporate excellence starts here. Use this centralized dashboard to build your profile, access specialized training modules, track upcoming hiring drives, and manage your applications in real time. Stay informed, stay prepared, and unlock your dream career.</p>
+      <div class="lp-audience-actions">
+        <a href="/login?role=student" class="btn btn-primary btn-sm">Student Login</a>
+        <a href="/login?role=student" class="btn btn-outline btn-sm">View Active Job Postings</a>
+      </div>
+    </article>
+
+    <article class="lp-audience reveal reveal-delay-2">
+      <p class="lp-audience-label">For Alumni</p>
+      <h3>Stay Connected, Pay It Forward</h3>
+      <p>Our alumni network is the living testament to RGUKT's vision. Reconnect with your alma mater to mentor your juniors, post internal corporate opportunities, or collaborate with faculty on industry-relevant initiatives.</p>
+      <div class="lp-audience-actions">
+        <a href="/login?tab=register&amp;role=company" class="btn btn-primary btn-sm">Register as Alumni</a>
+        <a href="/login?role=company" class="btn btn-outline btn-sm">Post a Career Opportunity</a>
+      </div>
+    </article>
+  </section>
+
+  <section class="lp-highlights" id="highlights">
+    <h2 class="reveal">Quick Placement Highlights</h2>
+    <ul class="lp-highlight-list">
+      <li class="reveal">
+        <strong>Top 1% Talent Pool</strong>
+        <span>Handpicked from across rural public schools for exceptional scholastic merit.</span>
+      </li>
+      <li class="reveal reveal-delay-1">
+        <strong>Industry-Ready Curriculum</strong>
+        <span>Heavily weighted toward practical coding, advanced labs, and live capstone projects.</span>
+      </li>
+      <li class="reveal reveal-delay-2">
+        <strong>Diverse Tech Tracks</strong>
+        <span>Specialists in Artificial Intelligence, Software Engineering, VLSI Systems, and Smart Manufacturing.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="lp-portal-entry">
+    <h2 class="reveal">Enter the Portal</h2>
+    <p class="lp-section-lead reveal reveal-delay-1">Continue with the role that matches how you use the placement system.</p>
+    <div class="role-select-grid">
+      <div class="role-card reveal" onclick="goToLogin('student')" role="link" tabindex="0" onkeydown="if(event.key==='Enter')goToLogin('student')">
+        <div class="r-icon" style="background: var(--accent-orange-soft); color: var(--brand);" data-icon="graduation-cap" data-icon-size="24"></div>
+        <h3>Student</h3>
+        <p>Build your resume, browse placement drives, apply to companies, track interviews and check your results.</p>
+        <span class="r-arrow">Continue as Student <span data-icon="chevron-right" data-icon-size="15"></span></span>
+      </div>
+      <div class="role-card reveal reveal-delay-1" onclick="goToLogin('cdpc')" role="link" tabindex="0" onkeydown="if(event.key==='Enter')goToLogin('cdpc')">
+        <div class="r-icon" style="background: var(--accent-blue-soft); color: var(--accent-blue);" data-icon="building-2" data-icon-size="24"></div>
+        <h3>CDPC / Administrator</h3>
+        <p>Manage students, companies, drives and interviews. Publish results and view placement analytics.</p>
+        <span class="r-arrow">Continue as CDPC <span data-icon="chevron-right" data-icon-size="15"></span></span>
+      </div>
+      <div class="role-card reveal reveal-delay-2" onclick="goToLogin('company')" role="link" tabindex="0" onkeydown="if(event.key==='Enter')goToLogin('company')">
+        <div class="r-icon" style="background: var(--accent-green-soft); color: var(--accent-green);" data-icon="briefcase" data-icon-size="24"></div>
+        <h3>Company</h3>
+        <p>Post placement drives, review applicants, browse the eligible student pool and shortlist candidates.</p>
+        <span class="r-arrow">Continue as Company <span data-icon="chevron-right" data-icon-size="15"></span></span>
+      </div>
+    </div>
+  </section>
 
   <footer class="landing-footer">
-    &copy; 2026 RGUKT Ongole — Career Development &amp; Placement Cell. Built as an academic project.
+    &copy; 2026 RGUKT Ongole — Training &amp; Placement Cell. Built as an academic project.
   </footer>
 </div>
 
