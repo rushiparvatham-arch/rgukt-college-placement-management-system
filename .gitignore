@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+.venv/
+
+# Flask instance data (SQLite DB is generated at runtime)
+instance/
+*.db
+
+# Uploaded resumes (user-generated content, not part of source)
+uploads/resumes/*
+!uploads/resumes/.gitkeep
+
+# Uploaded profile pictures (user-generated content, not part of source)
+uploads/profile_pictures/*
+!uploads/profile_pictures/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+.env
+.env

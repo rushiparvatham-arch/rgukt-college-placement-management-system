@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Student Dashboard | RGUKT Ongole Placement Portal</title>
+{% include 'partials/head_common.html' %}
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="{{ url_for('static', filename='images/rgukt-logo.png') }}" alt="RGUKT Ongole logo" />
+      <div class="brand-text">
+        <div class="l1">RGUKT ONGOLE</div>
+        <div class="l2">Student Portal</div>
+      </div>
+    </div>
+    <div class="sidebar-scroll">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Student</div>
+        <button class="sidebar-link active" data-view="overview"><span class="ic" data-icon="home"></span> Overview</button>
+        <button class="sidebar-link" data-view="companies"><span class="ic" data-icon="building-2"></span> Companies</button>
+        <button class="sidebar-link" data-view="drives"><span class="ic" data-icon="clipboard-list"></span> Placement Drives</button>
+        <button class="sidebar-link" data-view="applications"><span class="ic" data-icon="send"></span> Applications</button>
+        <button class="sidebar-link" data-view="interviews"><span class="ic" data-icon="mic"></span> Interviews</button>
+        <button class="sidebar-link" data-view="results"><span class="ic" data-icon="trophy"></span> Results</button>
+        <button class="sidebar-link" data-view="resume-creator"><span class="ic" data-icon="file-text"></span> Resume Creator</button>
+        <button class="sidebar-link" data-view="skill-assessment"><span class="ic" data-icon="target"></span> Skill Assessment</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Resources</div>
+        <button class="sidebar-link" data-view="aptitude"><span class="ic" data-icon="brain"></span> Aptitude Test</button>
+        <button class="sidebar-link" data-view="ai-analyzer"><span class="ic" data-icon="bot"></span> AI Resume Analyzer</button>
+        <button class="sidebar-link" data-view="ats-score"><span class="ic" data-icon="bar-chart"></span> ATS Scoring</button>
+        <button class="sidebar-link" data-view="help"><span class="ic" data-icon="help-circle"></span> Help</button>
+        <button class="sidebar-link" data-view="about"><span class="ic" data-icon="info"></span> About</button>
+        <button class="sidebar-link" onclick="openLogoutConfirm()"><span class="ic" data-icon="log-out"></span> Logout</button>
+      </div>
+    </div>
+    <div class="sidebar-footer">RGUKT Ongole CDPC © 2026</div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="flex items-center gap-12">
+      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn"><span data-icon="menu"></span></button>
+      <div class="navbar-search">
+        <span class="icon-search" data-icon="search" data-icon-size="15"></span>
+        <input type="text" id="navbar-search-input" placeholder="Search companies, drives..." autocomplete="off" />
+        <div class="search-results" id="search-results"></div>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      {% include 'partials/notification_dropdown.html' %}
+      <div class="dropdown-wrap">
+        <button class="icon-btn" onclick="toggleDropdown('settings-panel')"><span data-icon="settings"></span></button>
+        <div class="dropdown-panel" id="settings-panel" style="width:280px;">
+          <div class="dropdown-header">Settings</div>
+          <div class="profile-dropdown-menu">
+            <button onclick="openModal('change-password-modal')"><span data-icon="settings" data-icon-size="15"></span> Change Password</button>
+            <button onclick="openModal('edit-profile-modal')"><span data-icon="file-text" data-icon-size="15"></span> Edit Profile</button>
+            <div class="divider"></div>
+            <div style="padding:10px 12px; font-size:0.8rem; color:var(--text-muted);">Theme: Dark (default)</div>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-wrap">
+        <button class="navbar-profile" onclick="toggleDropdown('profile-panel')">
+          <span class="avatar js-avatar">--</span>
+          <span class="navbar-profile-meta">
+            <div class="name js-user-name">Loading...</div>
+            <div class="role js-user-role">Student</div>
+          </span>
+        </button>
+        <div class="dropdown-panel" id="profile-panel" style="width:300px;">
+          <div id="profile-detail-card-mount" class="profile-detail-card"></div>
+          <div class="profile-dropdown-menu">
+            <button onclick="openModal('edit-profile-modal')"><span data-icon="file-text" data-icon-size="15"></span> Edit Profile</button>
+            <button data-view-link="resume-creator"><span data-icon="file-text" data-icon-size="15"></span> My Resume</button>
+            <div class="divider"></div>
+            <button onclick="openLogoutConfirm()" style="color:var(--accent-red);"><span data-icon="log-out" data-icon-size="15"></span> Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- OVERVIEW -->
+    <section class="view-section active" id="view-overview">
+      <div class="page-header">
+        <div><h1 id="welcome-heading">Welcome back!</h1><p>Here's what's happening with your placement journey.</p></div>
+      </div>
+      <div class="stats-grid" id="student-stats-grid">
+        <div class="loading-row"><div class="spinner"></div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card card-pad">
+          <div class="flex justify-between items-center mb-16">
+            <h3>Recent Applications</h3>
+            <button class="btn btn-ghost btn-sm" data-view-link="applications">View all →</button>
+          </div>
+          <div id="overview-applications-list"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card card-pad">
+          <div class="flex justify-between items-center mb-16">
+            <h3>Upcoming Interviews</h3>
+            <button class="btn btn-ghost btn-sm" data-view-link="interviews">View all →</button>
+          </div>
+          <div id="overview-interviews-list"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPANIES -->
+    <section class="view-section" id="view-companies">
+      <div class="page-header"><div><h1>Companies</h1><p>Recruiters actively engaging with RGUKT Ongole.</p></div></div>
+      <div class="grid-cards" id="companies-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- DRIVES -->
+    <section class="view-section" id="view-drives">
+      <div class="page-header"><div><h1>Placement Drives</h1><p>Browse and apply to open drives you're eligible for.</p></div></div>
+      <div class="filters-bar">
+        <select id="drives-filter-status">
+          <option value="">All Status</option>
+          <option value="Upcoming">Upcoming</option>
+          <option value="Ongoing">Ongoing</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <select id="drives-filter-eligible">
+          <option value="">All Drives</option>
+          <option value="true">Eligible Only</option>
+        </select>
+      </div>
+      <div class="grid-cards" id="drives-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- APPLICATIONS -->
+    <section class="view-section" id="view-applications">
+      <div class="page-header"><div><h1>My Applications</h1><p>Track the status of every drive you've applied to.</p></div></div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Role</th><th>Company</th><th>Applied On</th><th>Status</th></tr></thead>
+            <tbody id="applications-tbody"><tr><td colspan="4"><div class="loading-row"><div class="spinner"></div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTERVIEWS -->
+    <section class="view-section" id="view-interviews">
+      <div class="page-header"><div><h1>Interviews</h1><p>Your scheduled and completed interview rounds.</p></div></div>
+      <div class="card card-pad" id="interviews-list"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="view-section" id="view-results">
+      <div class="page-header"><div><h1>Results</h1><p>Outcomes published by CDPC for your applications.</p></div></div>
+      <div class="grid-cards" id="results-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- RESUME CREATOR -->
+    <section class="view-section" id="view-resume-creator">
+      <div class="page-header"><div><h1>Resume Creator</h1><p>Fill in your details to build a clean, ATS-friendly resume.</p></div></div>
+      <div class="grid-2">
+        <div class="card card-pad">
+          <form id="resume-builder-form">
+            <div class="field"><label>Professional Summary</label><textarea id="rb-summary" placeholder="A short 2-3 line summary about you..."></textarea></div>
+            <div class="field"><label>Skills (comma separated)</label><input type="text" id="rb-skills" placeholder="Python, Java, React, SQL" /></div>
+            <div class="field"><label>Education</label><textarea id="rb-education" placeholder="B.Tech in CSE, RGUKT Ongole — CGPA 8.6 (2022-2026)"></textarea></div>
+            <div class="field"><label>Projects</label><textarea id="rb-projects" placeholder="Project Name — one line description&#10;Another Project — description"></textarea></div>
+            <div class="field"><label>Experience / Internships</label><textarea id="rb-experience" placeholder="Company — Role — Duration — What you did"></textarea></div>
+            <div class="field"><label>Certifications & Achievements</label><textarea id="rb-certifications" placeholder="Certification / Award — Year"></textarea></div>
+            <div class="field-row">
+              <div class="field"><label>LinkedIn</label><input type="text" id="rb-linkedin" placeholder="linkedin.com/in/you" /></div>
+              <div class="field"><label>GitHub</label><input type="text" id="rb-github" placeholder="github.com/you" /></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Save Resume</button>
+          </form>
+        </div>
+        <div class="card card-pad">
+          <h3 class="mb-16">Live Preview</h3>
+          <div id="resume-preview" style="background:#fff; color:#111; border-radius:10px; padding:24px; font-size:0.82rem; line-height:1.6; max-height:640px; overflow-y:auto;"></div>
+          <button class="btn btn-outline btn-block mt-16" onclick="printResume()"><span data-icon="download" data-icon-size="15"></span> Print / Save as PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- APTITUDE -->
+    <section class="view-section" id="view-aptitude">
+      <div class="page-header"><div><h1>Aptitude Test</h1><p>Practice quantitative, logical and verbal ability sets.</p></div></div>
+      <div class="grid-cards" id="aptitude-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+      <h3 class="mt-24 mb-16">Your Attempt History</h3>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Test</th><th>Score</th><th>Date</th></tr></thead>
+            <tbody id="aptitude-history-tbody"><tr><td colspan="3" class="text-muted" style="padding:16px;">No attempts yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SKILL ASSESSMENT -->
+    <section class="view-section" id="view-skill-assessment">
+      <div class="page-header"><div><h1>Skill Assessment</h1><p>Test your technical skills and earn a proficiency level companies can see.</p></div></div>
+      <div class="grid-cards" id="skill-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+      <h3 class="mt-24 mb-16">Your Attempt History</h3>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Skill</th><th>Score</th><th>Level</th><th>Date</th></tr></thead>
+            <tbody id="skill-history-tbody"><tr><td colspan="4" class="text-muted" style="padding:16px;">No attempts yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI RESUME ANALYZER -->
+    <section class="view-section" id="view-ai-analyzer">
+      <div class="page-header"><div><h1>AI Resume Analyzer</h1><p>Upload your resume PDF for instant AI-powered feedback.</p></div></div>
+      <div class="grid-2">
+        <div class="card card-pad">
+          <div class="field">
+            <label>Upload Resume (PDF)</label>
+            <input type="file" id="resume-upload-input" accept="application/pdf" />
+          </div>
+          <button class="btn btn-primary" id="upload-resume-btn">Upload & Analyze</button>
+          <p class="field-hint mt-8" id="current-resume-label">No resume uploaded yet.</p>
+
+          <div class="field mt-24">
+            <label>Optional: Paste a target Job Description</label>
+            <textarea id="jd-input" placeholder="Paste a job description here to score your resume against it specifically..."></textarea>
+          </div>
+          <button class="btn btn-secondary" id="reanalyze-btn">Re-analyze against Job Description</button>
+        </div>
+        <div class="card card-pad">
+          <h3 class="mb-16">AI Suggestions</h3>
+          <div id="ai-suggestions-list"><p class="text-muted text-sm">Upload a resume to see personalized suggestions.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ATS SCORE -->
+    <section class="view-section" id="view-ats-score">
+      <div class="page-header"><div><h1>ATS Scoring</h1><p>How well your resume would pass an Applicant Tracking System.</p></div></div>
+      <div class="grid-2">
+        <div class="card card-pad" style="text-align:center;">
+          <div class="score-ring-wrap">
+            <svg width="130" height="130">
+              <circle cx="65" cy="65" r="56" stroke="#232d42" stroke-width="12" fill="none"></circle>
+              <circle id="ats-ring" cx="65" cy="65" r="56" stroke="#f97316" stroke-width="12" fill="none" stroke-linecap="round" stroke-dasharray="352" stroke-dashoffset="352"></circle>
+            </svg>
+            <div class="score-ring-value"><span class="num" id="ats-score-num">0</span><span class="lbl">ATS Score</span></div>
+          </div>
+          <p class="text-muted text-sm mt-16">Based on structure, keywords, and formatting.</p>
+        </div>
+        <div class="card card-pad">
+          <h3 class="mb-16">Section Checklist</h3>
+          <div id="ats-checklist"><p class="text-muted text-sm">Upload a resume in the AI Resume Analyzer tab first.</p></div>
+          <h3 class="mt-24 mb-16">Matched Keywords</h3>
+          <div id="ats-keywords" class="flex gap-8" style="flex-wrap:wrap;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HELP -->
+    <section class="view-section" id="view-help">
+      <div class="page-header"><div><h1>Help &amp; Support</h1><p>Get answers to common questions about the placement process.</p></div></div>
+      <div class="card card-pad">
+        <div class="mb-16"><b>How do I apply to a drive?</b><p class="text-muted text-sm mt-8">Go to Placement Drives, check your eligibility badge, and click Apply. You must upload a resume first.</p></div>
+        <div class="mb-16"><b>How is my ATS score calculated?</b><p class="text-muted text-sm mt-8">Our AI analyzer checks resume structure, keyword density, action verbs and formatting to estimate how ATS software would parse your resume.</p></div>
+        <div class="mb-16"><b>Who do I contact for placement queries?</b><p class="text-muted text-sm mt-8">Reach the CDPC office at cdpc@rguktong.ac.in or visit the placement cell in the admin block.</p></div>
+        <div><b>How do I update my CGPA or profile info?</b><p class="text-muted text-sm mt-8">Use the profile menu (top right) → Edit Profile to update your academic and contact details anytime.</p></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="view-section" id="view-about">
+      <div class="page-header"><div><h1>About</h1><p>RGUKT Ongole Career Development & Placement Cell.</p></div></div>
+      <div class="card card-pad">
+        <p class="text-secondary text-sm" style="line-height:1.7;">
+          RGUKT Ongole (Rajiv Gandhi University of Knowledge Technologies, Ongole Campus) is one of five
+          IIIT campuses under RGUKT, Andhra Pradesh, established to provide free, high-quality technical
+          education to meritorious rural students. The Career Development and Placement Cell (CDPC)
+          coordinates campus recruitment, internships, and skill-development activities for students.
+        </p>
+        <p class="text-secondary text-sm mt-16" style="line-height:1.7;">
+          This Placement Management System is an academic project built to digitize and streamline the
+          entire placement lifecycle — from resume building and drive applications to interview scheduling
+          and result publication — for students, the CDPC/administration, and recruiting companies.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="edit-profile-modal">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Profile</h3><button class="modal-close" onclick="closeModal('edit-profile-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body">
+      <div class="profile-picture-upload">
+        <div class="ppu-preview" id="ppu-preview">--</div>
+        <div class="ppu-actions">
+          <div class="ppu-actions-row">
+            <label class="btn btn-outline btn-sm" for="ppu-file-input" style="cursor:pointer;">Upload Photo</label>
+            <button type="button" class="btn btn-ghost btn-sm" id="ppu-remove-btn" style="display:none;">Remove</button>
+          </div>
+          <input type="file" id="ppu-file-input" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+          <span class="ppu-hint">JPG, PNG or WEBP, up to 2 MB.</span>
+        </div>
+      </div>
+      <form id="edit-profile-form">
+        <div class="field-row">
+          <div class="field"><label>Full Name</label><input type="text" id="ep-name" required /></div>
+          <div class="field"><label>Phone</label><input type="text" id="ep-phone" /></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Branch</label>
+            <select id="ep-branch">
+              <option>Computer Science & Engineering</option>
+              <option>Electronics & Communication Engineering</option>
+              <option>Electrical & Electronics Engineering</option>
+              <option>Mechanical Engineering</option>
+              <option>Civil Engineering</option>
+            </select>
+          </div>
+          <div class="field"><label>Current Year</label><input type="text" id="ep-year" placeholder="4th Year" /></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>CGPA</label><input type="text" inputmode="decimal" placeholder="e.g. 8.6" id="ep-cgpa" /></div>
+          <div class="field"><label>Backlogs</label><input type="text" inputmode="numeric" placeholder="e.g. 0" id="ep-backlogs" /></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>10th %</label><input type="text" inputmode="decimal" placeholder="e.g. 92.0" id="ep-tenth" /></div>
+          <div class="field"><label>Inter/12th %</label><input type="text" inputmode="decimal" placeholder="e.g. 88.5" id="ep-inter" /></div>
+        </div>
+        <div class="field"><label>Address</label><input type="text" id="ep-address" /></div>
+        <div class="field-row">
+          <div class="field"><label>Gender</label>
+            <select id="ep-gender"><option>Male</option><option>Female</option><option>Other</option></select>
+          </div>
+          <div class="field"><label>Date of Birth</label><input type="date" id="ep-dob" /></div>
+        </div>
+        <div class="field"><label>Skills (comma separated)</label><input type="text" id="ep-skills" /></div>
+        <div class="field-row">
+          <div class="field"><label>LinkedIn</label><input type="text" id="ep-linkedin" /></div>
+          <div class="field"><label>GitHub</label><input type="text" id="ep-github" /></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('edit-profile-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-profile-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+{% include 'partials/change_password_modal.html' %}
+
+
+<div class="modal-overlay" id="drive-detail-modal">
+  <div class="modal-box modal-wide">
+    <div class="modal-header"><h3 id="dd-title">Drive Details</h3><button class="modal-close" onclick="closeModal('drive-detail-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body" id="dd-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('drive-detail-modal')">Close</button>
+      <button class="btn btn-primary" id="dd-apply-btn">Apply Now</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="aptitude-test-modal">
+  <div class="modal-box modal-wide">
+    <div class="modal-header"><h3 id="apt-title">Aptitude Test</h3><button class="modal-close" onclick="closeModal('aptitude-test-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body" id="apt-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('aptitude-test-modal')">Cancel</button>
+      <button class="btn btn-primary" id="apt-submit-btn">Submit Test</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/student.js') }}"></script>
+</body>
+</html>

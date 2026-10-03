@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>CDPC Dashboard | RGUKT Ongole Placement Portal</title>
+{% include 'partials/head_common.html' %}
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="{{ url_for('static', filename='images/rgukt-logo.png') }}" alt="RGUKT Ongole logo" />
+      <div class="brand-text"><div class="l1">RGUKT ONGOLE</div><div class="l2">CDPC Admin Portal</div></div>
+    </div>
+    <div class="sidebar-scroll">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Management</div>
+        <button class="sidebar-link active" data-view="overview"><span class="ic" data-icon="home"></span> Overview</button>
+        <button class="sidebar-link" data-view="students"><span class="ic" data-icon="graduation-cap"></span> Student Management</button>
+        <button class="sidebar-link" data-view="companies"><span class="ic" data-icon="building-2"></span> Company Management</button>
+        <button class="sidebar-link" data-view="drives"><span class="ic" data-icon="clipboard-list"></span> Drive Management</button>
+        <button class="sidebar-link" data-view="applications"><span class="ic" data-icon="send"></span> Applications</button>
+        <button class="sidebar-link" data-view="interviews"><span class="ic" data-icon="mic"></span> Interview Management</button>
+        <button class="sidebar-link" data-view="results"><span class="ic" data-icon="trophy"></span> Results</button>
+        <button class="sidebar-link" data-view="analytics"><span class="ic" data-icon="bar-chart"></span> Analytics &amp; Reports</button>
+        <button class="sidebar-link" data-view="send-notification"><span class="ic" data-icon="bell"></span> Send Notifications</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">More</div>
+        <button class="sidebar-link" data-view="help"><span class="ic" data-icon="help-circle"></span> Help</button>
+        <button class="sidebar-link" data-view="about"><span class="ic" data-icon="info"></span> About</button>
+        <button class="sidebar-link" onclick="openLogoutConfirm()"><span class="ic" data-icon="log-out"></span> Logout</button>
+      </div>
+    </div>
+    <div class="sidebar-footer">RGUKT Ongole CDPC © 2026</div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <header class="navbar">
+    <div class="flex items-center gap-12">
+      <button class="sidebar-toggle-btn" id="sidebar-toggle-btn"><span data-icon="menu"></span></button>
+      <div class="navbar-search">
+        <span class="icon-search" data-icon="search" data-icon-size="15"></span>
+        <input type="text" id="navbar-search-input" placeholder="Search students, companies, drives..." autocomplete="off" />
+        <div class="search-results" id="search-results"></div>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      {% include 'partials/notification_dropdown.html' %}
+      <div class="dropdown-wrap">
+        <button class="icon-btn" onclick="toggleDropdown('settings-panel')"><span data-icon="settings"></span></button>
+        <div class="dropdown-panel" id="settings-panel" style="width:280px;">
+          <div class="dropdown-header">Settings</div>
+          <div class="profile-dropdown-menu">
+            <button onclick="openModal('change-password-modal')"><span data-icon="settings" data-icon-size="15"></span> Change Password</button>
+            <button onclick="openModal('edit-profile-modal')"><span data-icon="file-text" data-icon-size="15"></span> Edit Profile</button>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-wrap">
+        <button class="navbar-profile" onclick="toggleDropdown('profile-panel')">
+          <span class="avatar js-avatar">--</span>
+          <span class="navbar-profile-meta"><div class="name js-user-name">Loading...</div><div class="role js-user-role">CDPC</div></span>
+        </button>
+        <div class="dropdown-panel" id="profile-panel" style="width:300px;">
+          <div id="profile-detail-card-mount" class="profile-detail-card"></div>
+          <div class="profile-dropdown-menu">
+            <button onclick="openModal('edit-profile-modal')"><span data-icon="file-text" data-icon-size="15"></span> Edit Profile</button>
+            <div class="divider"></div>
+            <button onclick="openLogoutConfirm()" style="color:var(--accent-red);"><span data-icon="log-out" data-icon-size="15"></span> Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+
+    <!-- OVERVIEW -->
+    <section class="view-section active" id="view-overview">
+      <div class="page-header"><div><h1 id="welcome-heading">Welcome back!</h1><p>Placement operations overview for RGUKT Ongole.</p></div></div>
+      <div class="stats-grid" id="cdpc-stats-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+      <div class="grid-2">
+        <div class="card card-pad">
+          <div class="flex justify-between items-center mb-16"><h3>Recent Applications</h3><button class="btn btn-ghost btn-sm" data-view-link="applications">View all →</button></div>
+          <div id="overview-applications-list"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card card-pad">
+          <div class="flex justify-between items-center mb-16"><h3>Upcoming Interviews</h3><button class="btn btn-ghost btn-sm" data-view-link="interviews">View all →</button></div>
+          <div id="overview-interviews-list"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STUDENT MANAGEMENT -->
+    <section class="view-section" id="view-students">
+      <div class="page-header"><div><h1>Student Management</h1><p>All registered students and their placement status.</p></div>
+        <button class="btn btn-outline btn-sm" onclick="exportCSV('students')"><span data-icon="download" data-icon-size="15"></span> Export CSV</button>
+      </div>
+      <div class="filters-bar">
+        <select id="students-filter-branch"><option value="">All Branches</option></select>
+        <select id="students-filter-placed"><option value="">All Students</option><option value="true">Placed</option><option value="false">Not Placed</option></select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Roll No</th><th>Branch</th><th>CGPA</th><th>Backlogs</th><th>Status</th><th>Resume</th><th></th></tr></thead>
+            <tbody id="students-tbody"><tr><td colspan="8"><div class="loading-row"><div class="spinner"></div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPANY MANAGEMENT -->
+    <section class="view-section" id="view-companies">
+      <div class="page-header"><div><h1>Company Management</h1><p>Companies onboarded for recruitment.</p></div></div>
+      <div class="grid-cards" id="companies-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- DRIVE MANAGEMENT -->
+    <section class="view-section" id="view-drives">
+      <div class="page-header"><div><h1>Drive Management</h1><p>Create and manage placement drives.</p></div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateDriveModal()"><span data-icon="plus" data-icon-size="15"></span> New Drive</button>
+      </div>
+      <div class="grid-cards" id="drives-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- APPLICATIONS -->
+    <section class="view-section" id="view-applications">
+      <div class="page-header"><div><h1>Applications</h1><p>Review and update the status of student applications.</p></div></div>
+      <div class="filters-bar">
+        <select id="apps-filter-drive"><option value="">All Drives</option></select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Student</th><th>Branch</th><th>CGPA</th><th>Role</th><th>Company</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="cdpc-applications-tbody"><tr><td colspan="7"><div class="loading-row"><div class="spinner"></div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTERVIEW MANAGEMENT -->
+    <section class="view-section" id="view-interviews">
+      <div class="page-header"><div><h1>Interview Management</h1><p>Schedule and track interview rounds.</p></div>
+        <button class="btn btn-primary btn-sm" onclick="openScheduleInterviewModal()"><span data-icon="plus" data-icon-size="15"></span> Schedule Interview</button>
+      </div>
+      <div class="card card-pad" id="interviews-list"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="view-section" id="view-results">
+      <div class="page-header"><div><h1>Results</h1><p>Publish final placement outcomes.</p></div>
+        <button class="btn btn-primary btn-sm" onclick="openPublishResultModal()"><span data-icon="plus" data-icon-size="15"></span> Publish Result</button>
+      </div>
+      <div class="grid-cards" id="results-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
+    <!-- ANALYTICS -->
+    <section class="view-section" id="view-analytics">
+      <div class="page-header"><div><h1>Analytics &amp; Reports</h1><p>Placement performance across branches and companies.</p></div></div>
+      <div class="grid-2">
+        <div class="card card-pad">
+          <h3 class="mb-16">Branch-wise Placement</h3>
+          <div id="branch-analytics"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card card-pad">
+          <h3 class="mb-16">Application Funnel</h3>
+          <div id="funnel-analytics"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+      <div class="grid-2 mt-24">
+        <div class="card card-pad">
+          <h3 class="mb-16">Top Recruiting Companies</h3>
+          <div id="top-companies-analytics"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card card-pad">
+          <h3 class="mb-16">Drive Status Distribution</h3>
+          <div id="drive-status-analytics"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEND NOTIFICATIONS -->
+    <section class="view-section" id="view-send-notification">
+      <div class="page-header"><div><h1>Send Notifications</h1><p>Broadcast an announcement to students or companies.</p></div></div>
+      <div class="grid-2">
+        <div class="card card-pad">
+          <div class="field">
+            <label>Send To</label>
+            <select id="notif-audience">
+              <option value="all_students">All Students</option>
+              <option value="branch">Students in a Specific Branch</option>
+              <option value="all_companies">All Companies</option>
+              <option value="everyone">Everyone (Students + Companies)</option>
+            </select>
+          </div>
+          <div class="field" id="notif-branch-field" style="display:none;">
+            <label>Branch</label>
+            <select id="notif-branch"></select>
+          </div>
+          <div class="field">
+            <label>Message</label>
+            <textarea id="notif-message" maxlength="255" placeholder="e.g. Placement drive by TechNova Solutions has been rescheduled to 20 Sep."></textarea>
+            <p class="field-hint"><span id="notif-char-count">0</span>/255 characters</p>
+          </div>
+          <button class="btn btn-primary btn-block" id="send-notification-btn">Send Notification</button>
+        </div>
+        <div class="card card-pad">
+          <h3 class="mb-16">Recently Sent</h3>
+          <div id="sent-notifications-list"><div class="loading-row"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HELP -->
+    <section class="view-section" id="view-help">
+      <div class="page-header"><div><h1>Help &amp; Support</h1><p>Admin guide for the CDPC portal.</p></div></div>
+      <div class="card card-pad">
+        <div class="mb-16"><b>How do I create a new drive?</b><p class="text-muted text-sm mt-8">Go to Drive Management → New Drive, select the company, and set eligibility criteria (min CGPA, max backlogs, branches).</p></div>
+        <div class="mb-16"><b>How do I move a student through the pipeline?</b><p class="text-muted text-sm mt-8">Update the application status in Applications, or schedule an interview directly from Interview Management.</p></div>
+        <div><b>How do I publish final results?</b><p class="text-muted text-sm mt-8">Use Results → Publish Result, choose the application and mark Selected / Rejected / Waitlisted with remarks.</p></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="view-section" id="view-about">
+      <div class="page-header"><div><h1>About</h1><p>RGUKT Ongole Career Development &amp; Placement Cell.</p></div></div>
+      <div class="card card-pad">
+        <p class="text-secondary text-sm" style="line-height:1.7;">
+          The CDPC (Career Development and Placement Cell) at RGUKT Ongole coordinates all recruitment
+          activity for the campus — from onboarding companies and running eligibility checks, to
+          scheduling interviews and publishing final placement outcomes. This admin portal centralizes
+          those workflows into a single dashboard.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="edit-profile-modal">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Edit Profile</h3><button class="modal-close" onclick="closeModal('edit-profile-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body">
+      <div class="profile-picture-upload">
+        <div class="ppu-preview" id="ppu-preview">--</div>
+        <div class="ppu-actions">
+          <div class="ppu-actions-row">
+            <label class="btn btn-outline btn-sm" for="ppu-file-input" style="cursor:pointer;">Upload Photo</label>
+            <button type="button" class="btn btn-ghost btn-sm" id="ppu-remove-btn" style="display:none;">Remove</button>
+          </div>
+          <input type="file" id="ppu-file-input" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+          <span class="ppu-hint">JPG, PNG or WEBP, up to 2 MB.</span>
+        </div>
+      </div>
+      <div class="field"><label>Full Name</label><input type="text" id="ep-name" required /></div>
+      <div class="field"><label>Phone</label><input type="text" id="ep-phone" /></div>
+      <div class="field"><label>Designation</label><input type="text" id="ep-designation" /></div>
+      <div class="field"><label>Department</label><input type="text" id="ep-department" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('edit-profile-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-profile-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+{% include 'partials/change_password_modal.html' %}
+
+
+<div class="modal-overlay" id="create-drive-modal">
+  <div class="modal-box modal-wide">
+    <div class="modal-header"><h3>Create Placement Drive</h3><button class="modal-close" onclick="closeModal('create-drive-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body">
+      <div class="field"><label>Company</label><select id="cd-company"></select></div>
+      <div class="field-row">
+        <div class="field"><label>Role Title</label><input type="text" id="cd-role" /></div>
+        <div class="field"><label>Job Type</label><select id="cd-jobtype"><option>Full-Time</option><option>Internship</option></select></div>
+      </div>
+      <div class="field"><label>Description</label><textarea id="cd-description"></textarea></div>
+      <div class="field-row">
+        <div class="field"><label>CTC</label><input type="text" id="cd-ctc" placeholder="₹6.5 LPA" /></div>
+        <div class="field"><label>Location</label><input type="text" id="cd-location" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Min CGPA</label><input type="number" step="0.1" id="cd-mincgpa" value="0" /></div>
+        <div class="field"><label>Max Backlogs</label><input type="number" id="cd-maxbacklogs" value="0" /></div>
+      </div>
+      <div class="field"><label>Eligible Branches (comma separated, or "All Branches")</label><input type="text" id="cd-branches" value="All Branches" /></div>
+      <div class="field-row">
+        <div class="field"><label>Drive Date</label><input type="text" id="cd-drivedate" placeholder="15 Sep 2026" /></div>
+        <div class="field"><label>Application Deadline</label><input type="text" id="cd-deadline" placeholder="05 Sep 2026" /></div>
+      </div>
+      <div class="field"><label>Status</label><select id="cd-status"><option>Upcoming</option><option>Ongoing</option><option>Closed</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('create-drive-modal')">Cancel</button>
+      <button class="btn btn-primary" id="submit-drive-btn">Create Drive</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="schedule-interview-modal">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Schedule Interview</h3><button class="modal-close" onclick="closeModal('schedule-interview-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body">
+      <div class="field"><label>Application</label><select id="si-application"></select></div>
+      <div class="field"><label>Round Name</label><input type="text" id="si-round" placeholder="Technical Round 1" /></div>
+      <div class="field-row">
+        <div class="field"><label>Scheduled At</label><input type="text" id="si-datetime" placeholder="28 Aug 2026, 10:00 AM" /></div>
+        <div class="field"><label>Mode</label><select id="si-mode"><option>Online</option><option>Offline</option></select></div>
+      </div>
+      <div class="field"><label>Venue / Link</label><input type="text" id="si-venue" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('schedule-interview-modal')">Cancel</button>
+      <button class="btn btn-primary" id="submit-interview-btn">Schedule</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="publish-result-modal">
+  <div class="modal-box">
+    <div class="modal-header"><h3>Publish Result</h3><button class="modal-close" onclick="closeModal('publish-result-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-body">
+      <div class="field"><label>Application</label><select id="pr-application"></select></div>
+      <div class="field"><label>Outcome</label><select id="pr-outcome"><option>Selected</option><option>Rejected</option><option>Waitlisted</option></select></div>
+      <div class="field"><label>Package Offered</label><input type="text" id="pr-package" placeholder="₹8.2 LPA" /></div>
+      <div class="field"><label>Remarks</label><textarea id="pr-remarks"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('publish-result-modal')">Cancel</button>
+      <button class="btn btn-primary" id="submit-result-btn">Publish</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/cdpc.js') }}"></script>
+</body>
+</html>
