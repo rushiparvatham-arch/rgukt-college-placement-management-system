@@ -24,4 +24,4 @@ uploads/profile_pictures/*
 .idea/
 *.swp
 .env
-.env
+.env.example
