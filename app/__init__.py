@@ -106,3 +106,5 @@ def create_app():
         ensure_schema()
         seed_data()
         sync_skill_assessments()
+
+    return app
