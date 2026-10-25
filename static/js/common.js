@@ -43,6 +43,7 @@ const ICON_PATHS = {
   mail: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M4 6.5 12 13l8-6.5"/>',
   "alert-triangle": '<path d="M12 4 21.5 20H2.5Z"/><line x1="12" y1="10" x2="12" y2="14.5"/><line x1="12" y1="17" x2="12" y2="17"/>',
   check: '<polyline points="4,12.5 9,17.5 20,6"/>',
+  shield: '<path d="M12 3 19 6v5c0 4.8-3 8.3-7 10-4-1.7-7-5.2-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/>',
   eye: '<path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
   "eye-off": '<path d="M3 3l18 18"/><path d="M10.6 5.7A10.8 10.8 0 0 1 12 5.5c6.5 0 10 6.5 10 6.5a17.3 17.3 0 0 1-3.4 4.3M6.8 6.9C4 8.7 2 12 2 12s3.5 6.5 10 6.5c1.4 0 2.7-.3 3.8-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
 };
@@ -169,7 +170,7 @@ async function loadCurrentUser() {
     CURRENT_USER = data.user;
     return data.user;
   } catch (e) {
-    window.location.href = "/login";
+    window.RgLoader ? RgLoader.navigate("/login", "Session ended. Redirecting…") : (window.location.href = "/login");
     return null;
   }
 }
@@ -353,7 +354,7 @@ async function handleLogout() {
   try {
     await apiRequest("/auth/logout", { method: "POST" });
   } catch (e) {}
-  window.location.href = "/";
+  window.RgLoader ? RgLoader.navigate("/", "Signing you out…") : (window.location.href = "/");
 }
 
 /* ---------- Generic confirm dialog (built once, reused everywhere) ---------- */
@@ -501,3 +502,37 @@ function fmtDate(dstr) {
   if (!dstr) return "-";
   return dstr;
 }
+
+/* ---------- Theme (light / dark) ---------- */
+function getPreferredTheme() {
+  try {
+    const stored = localStorage.getItem("rgukt-theme");
+    if (stored === "light" || stored === "dark") return stored;
+  } catch (e) {}
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  try { localStorage.setItem("rgukt-theme", theme); } catch (e) {}
+  document.querySelectorAll("#theme-toggle, .theme-toggle").forEach((btn) => {
+    btn.setAttribute("aria-label", theme === "light" ? "Switch to dark theme" : "Switch to light theme");
+    btn.title = theme === "light" ? "Switch to dark" : "Switch to light";
+  });
+}
+
+function initThemeToggle() {
+  if (!document.documentElement.getAttribute("data-theme")) {
+    applyTheme(getPreferredTheme());
+  }
+  document.querySelectorAll("#theme-toggle, .theme-toggle").forEach((btn) => {
+    if (btn.dataset.themeBound) return;
+    btn.dataset.themeBound = "1";
+    btn.addEventListener("click", () => {
+      const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+      applyTheme(next);
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initThemeToggle);

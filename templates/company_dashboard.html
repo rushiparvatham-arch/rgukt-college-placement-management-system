@@ -5,6 +5,7 @@
 {% include 'partials/head_common.html' %}
 </head>
 <body>
+{% include 'partials/preloader.html' %}
 
 <div class="app-shell">
   <aside class="sidebar">
@@ -41,6 +42,10 @@
       </div>
     </div>
     <div class="navbar-actions">
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark theme" title="Toggle theme">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
       {% include 'partials/notification_dropdown.html' %}
       <div class="dropdown-wrap">
         <button class="icon-btn" onclick="toggleDropdown('settings-panel')"><span data-icon="settings"></span></button>
@@ -219,5 +224,7 @@
 <div id="toast-container"></div>
 <script src="{{ url_for('static', filename='js/common.js') }}"></script>
 <script src="{{ url_for('static', filename='js/company.js') }}"></script>
+<script src="{{ url_for('static', filename='js/advanced.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pro.js') }}"></script>
 </body>
 </html>

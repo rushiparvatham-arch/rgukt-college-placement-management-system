@@ -1,8 +1,23 @@
 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" href="{{ url_for('static', filename='images/rgukt-logo.svg') }}" />
+<link rel="icon" href="{{ url_for('static', filename='images/rgukt-logo.png') }}" />
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("rgukt-theme");
+    if (!t) t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loader.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro.css') }}" />
+<script src="{{ url_for('static', filename='js/loader.js') }}"></script>

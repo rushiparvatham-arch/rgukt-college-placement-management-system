@@ -22,7 +22,7 @@ function loadViewData(view) {
   const loaders = {
     overview: loadOverview, students: loadStudents, companies: loadCompanies,
     drives: loadDrives, applications: loadApplications, interviews: loadInterviews,
-    results: loadResults, analytics: loadAnalytics, "send-notification": loadSendNotificationView,
+    results: loadResults, analytics: loadAnalytics, assessments: loadAssessments, "send-notification": loadSendNotificationView,
   };
   if (loaders[view]) loaders[view]();
 }
@@ -393,6 +393,127 @@ async function loadAnalytics() {
   } catch (e) { showToast(e.message, "error"); }
 }
 
+
+/* ---------------- CDPC Assessments ---------------- */
+let ASSESSMENT_RESULTS_CACHE = null;
+let ASSESSMENT_QUESTION_COUNT = 0;
+
+async function loadAssessments() {
+  try {
+    const data = await apiRequest("/cdpc/assessments");
+    const grid = document.getElementById("cdpc-assessments-grid");
+    grid.innerHTML = data.assessments.length ? data.assessments.map((a) => `
+      <div class="card entity-card">
+        <div class="ec-top"><div><div class="ec-title">${escapeHtml(a.title)}</div><div class="ec-sub">${escapeHtml(a.category || "General")} · ${a.duration_minutes} min</div></div>
+        <span class="badge ${a.published ? "badge-green" : "badge-muted"}">${a.published ? "Published" : "Draft"}</span></div>
+        <div class="ec-meta"><span>${icon("users", 14)} ${a.assigned_count} assigned</span><span>${icon("check-circle", 14)} ${a.completed_count} completed</span><span>${icon("clock", 14)} ${a.pending_count} pending</span></div>
+        <div class="ec-footer"><span class="text-muted text-sm">${a.total_questions} questions · ${escapeHtml(a.branches || "All Branches")}</span>
+          <button class="btn btn-outline btn-sm" onclick="viewAssessmentResults(${a.id})">View Results</button></div>
+      </div>`).join("") : `<div class="empty-state"><div class="icon">${icon("brain", 32)}</div><p>No CDPC assessments created yet.</p><p class="text-muted text-sm">Create an assessment to assign it to students and collect results.</p></div>`;
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+function populateAssessmentBranches() {
+  const sel = document.getElementById("ca-branch");
+  if (!sel) return;
+  const branches = [...new Set(ALL_STUDENTS.map((s) => s.branch).filter(Boolean))];
+  sel.innerHTML = `<option value="All Branches">All Students</option>` + branches.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("");
+}
+
+function addAssessmentQuestion() {
+  const list = document.getElementById("assessment-question-list");
+  const idx = ASSESSMENT_QUESTION_COUNT++;
+  const div = document.createElement("div");
+  div.className = "card card-pad mb-12 assessment-question-editor";
+  div.dataset.index = idx;
+  div.innerHTML = `
+    <div class="flex justify-between items-center mb-8"><b>Question ${idx + 1}</b><button type="button" class="btn btn-ghost btn-sm" onclick="removeAssessmentQuestion(this)">Remove</button></div>
+    <div class="field"><label>Question</label><textarea class="aq-question" rows="2" placeholder="Enter the question"></textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Option A</label><input class="aq-option" type="text" /></div>
+      <div class="field"><label>Option B</label><input class="aq-option" type="text" /></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Option C</label><input class="aq-option" type="text" /></div>
+      <div class="field"><label>Option D</label><input class="aq-option" type="text" /></div>
+    </div>
+    <div class="field"><label>Correct Answer</label><select class="aq-answer"><option value="0">Option A</option><option value="1">Option B</option><option value="2">Option C</option><option value="3">Option D</option></select></div>`;
+  list.appendChild(div);
+}
+
+function removeAssessmentQuestion(button) {
+  const card = button.closest(".assessment-question-editor");
+  if (card) card.remove();
+}
+
+function openCreateAssessmentModal() {
+  if (!ALL_STUDENTS.length) {
+    loadStudents().then(() => { prepareAssessmentForm(); openModal("create-assessment-modal"); });
+  } else { prepareAssessmentForm(); openModal("create-assessment-modal"); }
+}
+
+function prepareAssessmentForm() {
+  document.getElementById("ca-title").value = "";
+  document.getElementById("ca-category").value = "";
+  document.getElementById("ca-duration").value = 20;
+  ASSESSMENT_QUESTION_COUNT = 0;
+  document.getElementById("assessment-question-list").innerHTML = "";
+  populateAssessmentBranches();
+  addAssessmentQuestion();
+}
+
+async function submitCreateAssessment() {
+  const cards = [...document.querySelectorAll("#assessment-question-list .assessment-question-editor")];
+  const questions = cards.map((card) => ({
+    question: card.querySelector(".aq-question").value.trim(),
+    options: [...card.querySelectorAll(".aq-option")].map((i) => i.value.trim()),
+    answer: Number(card.querySelector(".aq-answer").value),
+  }));
+  const payload = {
+    title: document.getElementById("ca-title").value.trim(),
+    category: document.getElementById("ca-category").value.trim() || "General",
+    duration_minutes: Number(document.getElementById("ca-duration").value),
+    branches: document.getElementById("ca-branch").value,
+    questions,
+  };
+  if (!payload.title) { showToast("Enter an assessment title.", "error"); return; }
+  if (!cards.length) { showToast("Add at least one question.", "error"); return; }
+  try {
+    const data = await apiRequest("/cdpc/assessments", { method: "POST", body: payload });
+    showToast(data.message, "success");
+    closeModal("create-assessment-modal");
+    loadAssessments();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function viewAssessmentResults(testId) {
+  try {
+    const data = await apiRequest(`/cdpc/assessments/${testId}/results`);
+    ASSESSMENT_RESULTS_CACHE = data;
+    document.getElementById("assessment-results-panel").style.display = "block";
+    document.getElementById("assessment-results-title").textContent = `Results — ${data.assessment.title}`;
+    document.getElementById("assessment-results-summary").textContent = `Assigned: ${data.summary.assigned} · Completed: ${data.summary.completed} · Pending: ${data.summary.pending} · Average: ${data.summary.average_percent}% · Highest: ${data.summary.highest_percent}%`;
+    const tbody = document.getElementById("assessment-results-tbody");
+    tbody.innerHTML = data.results.length ? data.results.map((r) => `
+      <tr><td>${escapeHtml(r.student_name)}</td><td>${escapeHtml(r.roll_number || "-")}</td><td>${escapeHtml(r.branch || "-")}</td>
+      <td>${r.status === "Completed" ? '<span class="badge badge-green">Completed</span>' : '<span class="badge badge-yellow">Pending</span>'}</td>
+      <td>${r.score != null ? `${r.score}/${r.total}` : "—"}</td><td>${r.percent != null ? `${r.percent}%` : "—"}</td>
+      <td>${r.level ? escapeHtml(r.level) : "—"}</td><td>${r.taken_at || "—"}</td></tr>`).join("") : `<tr><td colspan="8"><div class="empty-state"><p>No students assigned.</p></div></td></tr>`;
+    document.getElementById("assessment-results-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+function exportAssessmentResults() {
+  if (!ASSESSMENT_RESULTS_CACHE) { showToast("Open an assessment's results first.", "error"); return; }
+  const rows = [["Student", "Email", "Roll No", "Branch", "Status", "Score", "Total", "Percent", "Level", "Taken At"]];
+  ASSESSMENT_RESULTS_CACHE.results.forEach((r) => rows.push([r.student_name, r.email, r.roll_number, r.branch, r.status, r.score ?? "", r.total ?? "", r.percent ?? "", r.level ?? "", r.taken_at ?? ""]));
+  const csv = rows.map((row) => row.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob); const a = document.createElement("a");
+  a.href = url; a.download = `${(ASSESSMENT_RESULTS_CACHE.assessment.title || "assessment").replace(/[^a-z0-9]+/gi, "_")}_results.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
 /* ---------------- Send Notifications ---------------- */
 let NOTIF_BRANCHES_LOADED = false;
 
@@ -528,6 +649,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("submit-interview-btn").addEventListener("click", submitScheduleInterview);
   initNotificationForm();
   document.getElementById("submit-result-btn").addEventListener("click", submitPublishResult);
+  document.getElementById("submit-assessment-btn").addEventListener("click", submitCreateAssessment);
 
   document.querySelectorAll('button[onclick*="edit-profile-modal"]').forEach((btn) => btn.addEventListener("click", populateEditProfileForm));
 });

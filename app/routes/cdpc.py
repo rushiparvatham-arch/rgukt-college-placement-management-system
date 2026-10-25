@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, session
 from app.extensions import db
 from app.models import (
     User, StudentProfile, CompanyProfile, CDPCProfile, Drive, Application,
-    Interview, Result, Notification, NotificationBroadcast,
+    Interview, Result, Notification, NotificationBroadcast, AptitudeTest, AptitudeResult, AssessmentAssignment,
 )
 
 cdpc_bp = Blueprint("cdpc", __name__)
@@ -468,3 +468,159 @@ def list_sent_notifications():
         return err
     broadcasts = NotificationBroadcast.query.order_by(NotificationBroadcast.created_at.desc()).limit(50).all()
     return jsonify({"broadcasts": [b.to_dict() for b in broadcasts]})
+
+# ---------------- Assessments ----------------
+
+@cdpc_bp.route("/assessments", methods=["GET"])
+def list_assessments():
+    """List CDPC-created assessments with assignment and completion statistics."""
+    user, err = require_cdpc()
+    if err:
+        return err
+    from app.models import AptitudeTest, AptitudeResult, AssessmentAssignment
+    tests = AptitudeTest.query.filter_by(created_by=user.id).order_by(AptitudeTest.id.desc()).all()
+    rows = []
+    for t in tests:
+        assigned = AssessmentAssignment.query.filter_by(test_id=t.id).count()
+        completed = AssessmentAssignment.query.filter_by(test_id=t.id, status="Completed").count()
+        rows.append({
+            **t.to_dict(),
+            "assigned_count": assigned,
+            "completed_count": completed,
+            "pending_count": max(assigned - completed, 0),
+        })
+    return jsonify({"assessments": rows})
+
+
+@cdpc_bp.route("/assessments", methods=["POST"])
+def create_assessment():
+    """Create and publish a custom assessment, assigning it to all students or a branch."""
+    user, err = require_cdpc()
+    if err:
+        return err
+    import json
+    from app.models import AptitudeTest, AssessmentAssignment
+
+    data = request.get_json(force=True) or {}
+    title = (data.get("title") or "").strip()
+    category = (data.get("category") or "General").strip()
+    test_type = data.get("test_type", "cdpc")
+    duration = int(data.get("duration_minutes", 15) or 15)
+    target_branch = (data.get("branches") or "All Branches").strip()
+    questions = data.get("questions") or []
+
+    if not title:
+        return jsonify({"error": "Assessment title is required."}), 400
+    if test_type != "cdpc":
+        return jsonify({"error": "CDPC-created assessments must use the CDPC assessment type."}), 400
+    if duration < 1 or duration > 180:
+        return jsonify({"error": "Duration must be between 1 and 180 minutes."}), 400
+    if not questions or len(questions) > 100:
+        return jsonify({"error": "Add between 1 and 100 questions."}), 400
+
+    clean_questions = []
+    for idx, q in enumerate(questions, 1):
+        question = str(q.get("question") or "").strip()
+        options = [str(x or "").strip() for x in (q.get("options") or [])]
+        answer = q.get("answer")
+        try:
+            answer = int(answer)
+        except (TypeError, ValueError):
+            answer = -1
+        if not question or len(options) < 2 or any(not x for x in options) or answer < 0 or answer >= len(options):
+            return jsonify({"error": f"Question {idx} is incomplete or has an invalid correct answer."}), 400
+        clean_questions.append({
+            "question": question,
+            "options": options,
+            "answer": answer,
+            "explanation": str(q.get("explanation") or "").strip(),
+        })
+
+    # Resolve target students before creating assignments so an invalid branch is rejected cleanly.
+    if target_branch.lower() == "all branches":
+        students = User.query.filter_by(role="student", is_active=True).all()
+    else:
+        branches = {b.strip().lower() for b in target_branch.split(",") if b.strip()}
+        students = [
+            u for u in User.query.filter_by(role="student", is_active=True).all()
+            if u.student_profile and (u.student_profile.branch or "").strip().lower() in branches
+        ]
+        if not students:
+            return jsonify({"error": "No active students were found for the selected branch."}), 400
+
+    test = AptitudeTest(
+        title=title,
+        category=category,
+        test_type="cdpc",
+        duration_minutes=duration,
+        branches=target_branch,
+        questions_json=json.dumps(clean_questions),
+        created_by=user.id,
+        published=True,
+    )
+    db.session.add(test)
+    db.session.flush()
+
+    for student in students:
+        db.session.add(AssessmentAssignment(test_id=test.id, student_id=student.id))
+        db.session.add(Notification(
+            user_id=student.id,
+            message=f"New CDPC assessment assigned: {title}. Duration: {duration} minutes.",
+        ))
+
+    db.session.commit()
+    return jsonify({
+        "message": f"Assessment published and assigned to {len(students)} student(s).",
+        "assessment": test.to_dict(),
+        "assigned_count": len(students),
+    }), 201
+
+
+@cdpc_bp.route("/assessments/<int:test_id>/results", methods=["GET"])
+def assessment_results(test_id):
+    """Return student-level results for a CDPC assessment."""
+    user, err = require_cdpc()
+    if err:
+        return err
+    from app.models import AptitudeTest, AptitudeResult, AssessmentAssignment
+
+    test = AptitudeTest.query.filter_by(id=test_id, created_by=user.id).first()
+    if not test:
+        return jsonify({"error": "Assessment not found."}), 404
+
+    assignments = AssessmentAssignment.query.filter_by(test_id=test.id).all()
+    result_map = {r.student_id: r for r in AptitudeResult.query.filter_by(test_id=test.id).all()}
+    rows = []
+    for a in assignments:
+        student = a.student
+        profile = student.student_profile if student else None
+        result = result_map.get(a.student_id)
+        rows.append({
+            "student_id": student.id if student else a.student_id,
+            "student_name": student.name if student else "Unknown",
+            "email": student.email if student else "",
+            "roll_number": profile.roll_number if profile else "",
+            "branch": profile.branch if profile else "",
+            "cgpa": profile.cgpa if profile else None,
+            "status": "Completed" if result else a.status,
+            "score": result.score if result else None,
+            "total": result.total if result else None,
+            "percent": result.to_dict()["percent"] if result else None,
+            "level": result.level if result else None,
+            "taken_at": result.taken_at.strftime("%d %b %Y, %I:%M %p") if result else None,
+            "result_id": result.id if result else None,
+        })
+
+    completed = sum(1 for r in rows if r["status"] == "Completed")
+    scores = [r["percent"] for r in rows if r["percent"] is not None]
+    return jsonify({
+        "assessment": test.to_dict(),
+        "summary": {
+            "assigned": len(rows),
+            "completed": completed,
+            "pending": len(rows) - completed,
+            "average_percent": round(sum(scores) / len(scores), 1) if scores else 0,
+            "highest_percent": max(scores) if scores else 0,
+        },
+        "results": rows,
+    })

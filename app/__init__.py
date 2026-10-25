@@ -58,6 +58,8 @@ def create_app():
     from app.routes.cdpc import cdpc_bp
     from app.routes.company import company_bp
     from app.routes.common import common_bp
+    from app.routes.advanced import advanced_bp
+    from app.routes.pro import pro_bp
 
     app.register_blueprint(pages_bp)
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
@@ -65,6 +67,8 @@ def create_app():
     app.register_blueprint(cdpc_bp, url_prefix="/api/cdpc")
     app.register_blueprint(company_bp, url_prefix="/api/company")
     app.register_blueprint(common_bp, url_prefix="/api/common")
+    app.register_blueprint(advanced_bp, url_prefix="/api/advanced")
+    app.register_blueprint(pro_bp, url_prefix="/api/pro")
 
     # Global error handlers: any unhandled exception on an /api/* route returns
     # clean JSON instead of an HTML traceback page (which the frontend's fetch()
@@ -96,8 +100,9 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        from app.utils.schema import ensure_schema
+        from app.utils.skill_assessments import sync_skill_assessments
         from app.seed import seed_data
+        ensure_schema()
         seed_data()
-
-    return app
-
+        sync_skill_assessments()

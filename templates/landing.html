@@ -21,8 +21,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loader.css') }}" />
+<script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </head>
 <body class="landing-page">
+{% include 'partials/preloader.html' %}
 
 <header class="lp-nav">
   <div class="lp-nav-inner">
@@ -46,7 +49,7 @@
 
 <section class="lp-hero" id="lp-hero">
   <div class="lp-hero-media" data-parallax="bg" aria-hidden="true">
-    <img src="{{ url_for('static', filename='images/campus-hero.jpg') }}" alt="" />
+    <img src="{{ url_for('static', filename='images/campus-hero.png') }}" alt="" />
   </div>
   <div class="lp-hero-parallax-layer" aria-hidden="true">
     <span class="lp-hero-orb o1" data-parallax="orb" data-speed="0.18"></span>
@@ -79,7 +82,7 @@
   <section class="lp-about">
     <div class="lp-about-copy reveal">
       <h2>Welcome to the Placement Portal</h2>
-      <p>At RGUKT Ongole, we nurture the top 1% of rural engineering minds through our rigorous 6-year integrated B.Tech curriculum. Driven by academic excellence, hands-on technical proficiency, our students are systematically prepared to step seamlessly into the global technology ecosystem.</p>
+      <p>At RGUKT Ongole, we nurture the top 1% of rural engineering minds through our rigorous 6-year integrated B.Tech curriculum. Driven by academic excellence, hands-on technical proficiency, and an elite work ethic, our students are systematically prepared to step seamlessly into the global technology ecosystem.</p>
       <p>Our placement portal serves as a unified, transparent gateway connecting industry leaders with future-ready engineering innovators.</p>
     </div>
     <figure class="lp-about-visual reveal reveal-delay-1" data-parallax-section>

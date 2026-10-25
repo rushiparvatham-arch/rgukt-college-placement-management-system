@@ -33,6 +33,7 @@ function loadViewData(view) {
     "resume-creator": loadResumeBuilder,
     aptitude: loadAptitudeTests,
     "skill-assessment": loadSkillAssessments,
+    "cdpc-assessments": loadCDPCAssessments,
     "ai-analyzer": loadAnalyzerView,
     "ats-score": loadAtsView,
   };
@@ -238,52 +239,6 @@ async function loadResults() {
   } catch (e) { showToast(e.message, "error"); }
 }
 
-/* ---------------- Resume Creator ---------------- */
-async function loadResumeBuilder() {
-  try {
-    const data = await apiRequest("/student/resume-builder");
-    const rd = data.resume_data || {};
-    document.getElementById("rb-summary").value = rd.summary || "";
-    document.getElementById("rb-skills").value = rd.skills || "";
-    document.getElementById("rb-education").value = rd.education || "";
-    document.getElementById("rb-projects").value = rd.projects || "";
-    document.getElementById("rb-experience").value = rd.experience || "";
-    document.getElementById("rb-certifications").value = rd.certifications || "";
-    document.getElementById("rb-linkedin").value = rd.linkedin || "";
-    document.getElementById("rb-github").value = rd.github || "";
-    renderResumePreview();
-  } catch (e) { showToast(e.message, "error"); }
-}
-
-function renderResumePreview() {
-  const name = CURRENT_USER ? CURRENT_USER.name : "Your Name";
-  const email = CURRENT_USER ? CURRENT_USER.email : "";
-  const phone = CURRENT_USER ? CURRENT_USER.phone : "";
-  const get = (id) => document.getElementById(id).value;
-  const nl2br = (t) => escapeHtml(t).split("\n").filter(Boolean).map((l) => `<div>• ${l}</div>`).join("");
-
-  document.getElementById("resume-preview").innerHTML = `
-    <div style="text-align:center; border-bottom:2px solid #111; padding-bottom:10px; margin-bottom:14px;">
-      <h2 style="margin:0; font-size:1.3rem;">${escapeHtml(name)}</h2>
-      <div style="font-size:0.78rem; color:#444;">${escapeHtml(email)} ${phone ? "· " + escapeHtml(phone) : ""} ${get("rb-linkedin") ? "· " + escapeHtml(get("rb-linkedin")) : ""} ${get("rb-github") ? "· " + escapeHtml(get("rb-github")) : ""}</div>
-    </div>
-    ${get("rb-summary") ? `<h4 style="margin:10px 0 4px;">Summary</h4><p style="margin:0;">${escapeHtml(get("rb-summary"))}</p>` : ""}
-    ${get("rb-skills") ? `<h4 style="margin:14px 0 4px;">Skills</h4><p style="margin:0;">${escapeHtml(get("rb-skills"))}</p>` : ""}
-    ${get("rb-education") ? `<h4 style="margin:14px 0 4px;">Education</h4>${nl2br(get("rb-education"))}` : ""}
-    ${get("rb-projects") ? `<h4 style="margin:14px 0 4px;">Projects</h4>${nl2br(get("rb-projects"))}` : ""}
-    ${get("rb-experience") ? `<h4 style="margin:14px 0 4px;">Experience</h4>${nl2br(get("rb-experience"))}` : ""}
-    ${get("rb-certifications") ? `<h4 style="margin:14px 0 4px;">Certifications & Achievements</h4>${nl2br(get("rb-certifications"))}` : ""}
-  `;
-}
-
-function printResume() {
-  const content = document.getElementById("resume-preview").innerHTML;
-  const win = window.open("", "_blank");
-  win.document.write(`<html><head><title>Resume</title></head><body style="font-family: Arial, sans-serif; padding:30px;">${content}</body></html>`);
-  win.document.close();
-  win.print();
-}
-
 /* ---------------- Aptitude Tests ---------------- */
 async function loadAptitudeTests() {
   try {
@@ -296,18 +251,58 @@ async function loadAptitudeTests() {
       <div class="card entity-card">
         <div class="ec-top"><div><div class="ec-title">${escapeHtml(t.title)}</div><div class="ec-sub">${escapeHtml(t.category)}</div></div><span class="badge badge-blue">${t.total_questions} Qs</span></div>
         <div class="ec-meta"><span>${icon("clock", 14)} ${t.duration_minutes} min</span>${t.last_score !== undefined ? `<span>${icon("check-circle", 14)} Last: ${t.last_score}/${t.last_total}</span>` : ""}</div>
-        <button class="btn btn-primary btn-block" onclick="startAptitudeTest(${t.id}, 'aptitude')">Start Test</button>
+        <div class="flex gap-8">
+          <button class="btn btn-primary btn-block" onclick="startAptitudeTest(${t.id}, 'aptitude')">Start Test</button>
+          ${t.last_has_review ? `<button class="btn btn-outline btn-sm" onclick="openAssessmentReview(${t.last_result_id})">Review</button>` : ""}
+        </div>
       </div>`).join("");
 
     const historyTbody = document.getElementById("aptitude-history-tbody");
     historyTbody.innerHTML = historyData.results.length
-      ? historyData.results.map((r) => `<tr><td>${escapeHtml(r.test_title)}</td><td>${r.score}/${r.total}</td><td>${r.taken_at}</td></tr>`).join("")
-      : `<tr><td colspan="3" class="text-muted" style="padding:16px;">No attempts yet.</td></tr>`;
+      ? historyData.results.map((r) => `<tr>
+          <td>${escapeHtml(r.test_title)}</td>
+          <td>${r.score}/${r.total}</td>
+          <td>${r.taken_at}</td>
+          <td>${r.has_review ? `<button class="btn btn-outline btn-sm" onclick="openAssessmentReview(${r.id})">Review</button>` : "—"}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="4" class="text-muted" style="padding:16px;">No attempts yet.</td></tr>`;
   } catch (e) { showToast(e.message, "error"); }
 }
 
+const SKILL_LEVEL_BADGE = { Beginner: "badge-muted", Intermediate: "badge-blue", Advanced: "badge-green" };
 let ACTIVE_TEST = null;
-let ACTIVE_TEST_KIND = "aptitude"; // "aptitude" | "skill" — controls which grid refreshes after submit
+let ACTIVE_TEST_KIND = "aptitude";
+let APT_TIMER = null;
+let APT_SUBMITTING = false;
+
+function stopAptTimer() {
+  if (APT_TIMER) {
+    clearInterval(APT_TIMER);
+    APT_TIMER = null;
+  }
+}
+
+function startAptTimer(minutes, testId) {
+  stopAptTimer();
+  let remaining = Math.max(1, (minutes || 10) * 60);
+  const el = document.getElementById("apt-timer");
+  const tick = () => {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    if (el) {
+      el.textContent = `${m}:${String(s).padStart(2, "0")}`;
+      el.classList.toggle("badge-red", remaining <= 30);
+    }
+    if (remaining <= 0) {
+      stopAptTimer();
+      submitAptitudeTest(testId, { auto: true });
+      return;
+    }
+    remaining -= 1;
+  };
+  tick();
+  APT_TIMER = setInterval(tick, 1000);
+}
 
 async function startAptitudeTest(testId, kind = "aptitude") {
   ACTIVE_TEST_KIND = kind;
@@ -316,38 +311,112 @@ async function startAptitudeTest(testId, kind = "aptitude") {
     ACTIVE_TEST = data.test;
     document.getElementById("apt-title").textContent = ACTIVE_TEST.title;
     document.getElementById("apt-body").innerHTML = ACTIVE_TEST.questions.map((q, idx) => `
-      <div class="mb-16">
+      <div class="mb-16 apt-question">
         <b class="text-sm">${idx + 1}. ${escapeHtml(q.question)}</b>
         <div class="mt-8 flex-col gap-8">
           ${q.options.map((opt, oi) => `
-            <label class="flex items-center gap-8 text-sm" style="cursor:pointer;">
+            <label class="flex items-center gap-8 text-sm apt-option" style="cursor:pointer;">
               <input type="radio" name="apt-q-${idx}" value="${oi}" /> ${escapeHtml(opt)}
             </label>`).join("")}
         </div>
       </div>`).join("");
+    document.getElementById("apt-footer").innerHTML = `
+      <button class="btn btn-outline" onclick="stopAptTimer(); closeModal('aptitude-test-modal')">Cancel</button>
+      <button class="btn btn-primary" id="apt-submit-btn">Submit Test</button>`;
     document.getElementById("apt-submit-btn").onclick = () => submitAptitudeTest(testId);
+    startAptTimer(ACTIVE_TEST.duration_minutes, testId);
     openModal("aptitude-test-modal");
   } catch (e) { showToast(e.message, "error"); }
 }
 
-async function submitAptitudeTest(testId) {
+async function submitAptitudeTest(testId, opts = {}) {
+  if (APT_SUBMITTING) return;
   const answers = {};
+  let unanswered = 0;
   ACTIVE_TEST.questions.forEach((q, idx) => {
     const selected = document.querySelector(`input[name="apt-q-${idx}"]:checked`);
     if (selected) answers[idx] = selected.value;
+    else unanswered += 1;
   });
+  if (!opts.auto && unanswered > 0) {
+    const ok = window.confirm(`You left ${unanswered} question(s) unanswered. Submit anyway?`);
+    if (!ok) return;
+  }
+  APT_SUBMITTING = true;
+  stopAptTimer();
   try {
     const res = await apiRequest(`/student/aptitude-tests/${testId}/submit`, { method: "POST", body: { answers } });
     closeModal("aptitude-test-modal");
     const levelMsg = res.level ? ` — Level: ${res.level}` : "";
-    showToast(`Test submitted! Score: ${res.score}/${res.total}${levelMsg}`, "success");
+    showToast(`${opts.auto ? "Time up. " : ""}Submitted! Score: ${res.score}/${res.total}${levelMsg}`, "success");
+    showAssessmentReview({
+      test_title: res.test_title || ACTIVE_TEST.title,
+      score: res.score,
+      total: res.total,
+      percent: res.percent,
+      level: res.level,
+      review: res.review,
+    });
     if (ACTIVE_TEST_KIND === "skill") loadSkillAssessments();
+    else if (ACTIVE_TEST_KIND === "cdpc") loadCDPCAssessments();
     else loadAptitudeTests();
   } catch (e) { showToast(e.message, "error"); }
+  finally { APT_SUBMITTING = false; }
 }
 
+function showAssessmentReview(payload) {
+  document.getElementById("review-title").textContent = `Review — ${payload.test_title || "Assessment"}`;
+  const pct = payload.percent ?? (payload.total ? Math.round((payload.score / payload.total) * 100) : 0);
+  document.getElementById("review-summary").innerHTML = `
+    <div class="flex items-center gap-12" style="flex-wrap:wrap;">
+      <span class="badge badge-orange" style="font-size:0.95rem;padding:8px 14px;">Score: ${payload.score}/${payload.total} (${pct}%)</span>
+      ${payload.level ? `<span class="badge ${SKILL_LEVEL_BADGE[payload.level] || "badge-muted"}">${escapeHtml(payload.level)}</span>` : ""}
+      <span class="text-muted text-sm">${(payload.review || []).filter((r) => r.is_correct).length} correct · ${(payload.review || []).filter((r) => !r.is_correct).length} incorrect / skipped</span>
+    </div>`;
+
+  document.getElementById("review-body").innerHTML = (payload.review || []).map((r, idx) => {
+    const statusClass = r.is_correct ? "review-correct" : "review-wrong";
+    const statusLabel = r.is_correct ? "Correct" : (r.selected_index == null ? "Not answered" : "Incorrect");
+    const optionsHtml = (r.options || []).map((opt, oi) => {
+      let cls = "review-opt";
+      if (oi === r.correct_index) cls += " is-correct";
+      if (r.selected_index != null && oi === r.selected_index && oi !== r.correct_index) cls += " is-selected-wrong";
+      if (r.selected_index != null && oi === r.selected_index && oi === r.correct_index) cls += " is-selected-correct";
+      return `<div class="${cls}">${escapeHtml(opt)}</div>`;
+    }).join("");
+    return `
+      <div class="review-q ${statusClass}">
+        <div class="flex justify-between gap-12 mb-8">
+          <b class="text-sm">${idx + 1}. ${escapeHtml(r.question)}</b>
+          <span class="badge ${r.is_correct ? "badge-green" : "badge-red"}">${statusLabel}</span>
+        </div>
+        <div class="review-opts">${optionsHtml}</div>
+        ${r.explanation ? `<p class="review-explain text-sm mt-8">${escapeHtml(r.explanation)}</p>` : ""}
+        ${r.selected_option ? `<p class="text-sm mt-8 text-secondary">Your answer: <b>${escapeHtml(r.selected_option)}</b></p>` : `<p class="text-sm mt-8 text-secondary">You did not select an option.</p>`}
+        ${!r.is_correct && r.correct_option ? `<p class="text-sm mt-8 text-secondary">Correct answer: <b>${escapeHtml(r.correct_option)}</b></p>` : ""}
+      </div>`;
+  }).join("") || `<p class="text-muted">No review data available.</p>`;
+
+  openModal("assessment-review-modal");
+}
+
+async function openAssessmentReview(resultId) {
+  try {
+    const data = await apiRequest(`/student/aptitude-results/${resultId}/review`);
+    showAssessmentReview({
+      test_title: data.test_title,
+      score: data.result.score,
+      total: data.result.total,
+      percent: data.result.percent,
+      level: data.result.level,
+      review: data.review,
+    });
+  } catch (e) { showToast(e.message, "error"); }
+}
+window.startAptitudeTest = startAptitudeTest;
+window.stopAptTimer = stopAptTimer;
+
 /* ---------------- Skill Assessment ---------------- */
-const SKILL_LEVEL_BADGE = { Beginner: "badge-muted", Intermediate: "badge-blue", Advanced: "badge-green" };
 
 async function loadSkillAssessments() {
   try {
@@ -355,19 +424,55 @@ async function loadSkillAssessments() {
       apiRequest("/student/aptitude-tests?type=skill"),
       apiRequest("/student/aptitude-results?type=skill"),
     ]);
+    const branch = testsData.student_branch || CURRENT_USER?.profile?.branch || "your branch";
+    const badge = document.getElementById("skill-branch-badge");
+    const lead = document.getElementById("skill-branch-lead");
+    if (badge) badge.textContent = branch;
+    if (lead) lead.textContent = `Technical assessments curated for ${branch}. Soft-skill modules are available to every branch.`;
+
     const grid = document.getElementById("skill-grid");
     grid.innerHTML = testsData.tests.length ? testsData.tests.map((t) => `
       <div class="card entity-card">
-        <div class="ec-top"><div><div class="ec-title">${escapeHtml(t.title)}</div><div class="ec-sub">${escapeHtml(t.category)}</div></div><span class="badge badge-purple">${t.total_questions} Qs</span></div>
+        <div class="ec-top">
+          <div>
+            <div class="ec-title">${escapeHtml(t.title)}</div>
+            <div class="ec-sub">${escapeHtml(t.category)}${t.branches && t.branches !== "All Branches" ? " · Branch-specific" : " · All branches"}</div>
+          </div>
+          <span class="badge badge-purple">${t.total_questions} Qs</span>
+        </div>
         <div class="ec-meta"><span>${icon("clock", 14)} ${t.duration_minutes} min</span></div>
-        ${t.last_score !== undefined ? `<div class="ec-meta"><span class="badge ${SKILL_LEVEL_BADGE[t.last_level] || "badge-muted"}">Best: ${t.last_score}/${t.last_total} · ${t.last_level || "—"}</span></div>` : ""}
-        <button class="btn btn-primary btn-block" onclick="startAptitudeTest(${t.id}, 'skill')">Start Assessment</button>
-      </div>`).join("") : `<div class="empty-state"><div class="icon">${icon("target", 32)}</div><p>No skill assessments available yet.</p></div>`;
+        ${t.last_score !== undefined ? `<div class="ec-meta"><span class="badge ${SKILL_LEVEL_BADGE[t.last_level] || "badge-muted"}">Latest: ${t.last_score}/${t.last_total} · ${t.last_level || "—"}</span></div>` : ""}
+        <div class="flex gap-8">
+          <button class="btn btn-primary btn-block" onclick="startAptitudeTest(${t.id}, 'skill')">Start Assessment</button>
+          ${t.last_has_review ? `<button class="btn btn-outline btn-sm" onclick="openAssessmentReview(${t.last_result_id})">Review</button>` : ""}
+        </div>
+      </div>`).join("") : `<div class="empty-state"><div class="icon">${icon("target", 32)}</div><p>No skill assessments available for your branch yet.</p></div>`;
 
     const historyTbody = document.getElementById("skill-history-tbody");
     historyTbody.innerHTML = historyData.results.length
-      ? historyData.results.map((r) => `<tr><td>${escapeHtml(r.test_title)}</td><td>${r.score}/${r.total}</td><td><span class="badge ${SKILL_LEVEL_BADGE[r.level] || "badge-muted"}">${r.level || "—"}</span></td><td>${r.taken_at}</td></tr>`).join("")
-      : `<tr><td colspan="4" class="text-muted" style="padding:16px;">No attempts yet.</td></tr>`;
+      ? historyData.results.map((r) => `<tr>
+          <td>${escapeHtml(r.test_title)}</td>
+          <td>${r.score}/${r.total}</td>
+          <td><span class="badge ${SKILL_LEVEL_BADGE[r.level] || "badge-muted"}">${r.level || "—"}</span></td>
+          <td>${r.taken_at}</td>
+          <td>${r.has_review ? `<button class="btn btn-outline btn-sm" onclick="openAssessmentReview(${r.id})">Review</button>` : "—"}</td>
+        </tr>`).join("")
+      : `<tr><td colspan="5" class="text-muted" style="padding:16px;">No attempts yet.</td></tr>`;
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+
+async function loadCDPCAssessments() {
+  try {
+    const data = await apiRequest("/student/aptitude-tests?type=cdpc");
+    const grid = document.getElementById("cdpc-assessment-grid");
+    grid.innerHTML = data.tests.length ? data.tests.map((t) => `
+      <div class="card entity-card">
+        <div class="ec-top"><div><div class="ec-title">${escapeHtml(t.title)}</div><div class="ec-sub">${escapeHtml(t.category || "General")}</div></div><span class="badge badge-blue">${t.total_questions} Qs</span></div>
+        <div class="ec-meta"><span>${icon("clock", 14)} ${t.duration_minutes} min</span>${t.last_score !== undefined ? `<span>${icon("check-circle", 14)} Latest: ${t.last_score}/${t.last_total}</span>` : ""}</div>
+        <div class="flex gap-8"><button class="btn btn-primary btn-block" onclick="startAptitudeTest(${t.id}, 'cdpc')">${t.last_score !== undefined ? "Retake Assessment" : "Start Assessment"}</button>
+        ${t.last_has_review ? `<button class="btn btn-outline btn-sm" onclick="openAssessmentReview(${t.last_result_id})">Review</button>` : ""}</div>
+      </div>`).join("") : `<div class="empty-state"><div class="icon">${icon("clipboard-check", 32)}</div><p>No CDPC assessments have been assigned to you yet.</p></div>`;
   } catch (e) { showToast(e.message, "error"); }
 }
 
@@ -536,29 +641,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("welcome-heading").textContent = `Welcome back, ${user.name.split(" ")[0]}!`;
   refreshNotifCount();
   loadOverview();
-
-  document.getElementById("resume-builder-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const payload = {
-      summary: document.getElementById("rb-summary").value,
-      skills: document.getElementById("rb-skills").value,
-      education: document.getElementById("rb-education").value,
-      projects: document.getElementById("rb-projects").value,
-      experience: document.getElementById("rb-experience").value,
-      certifications: document.getElementById("rb-certifications").value,
-      linkedin: document.getElementById("rb-linkedin").value,
-      github: document.getElementById("rb-github").value,
-    };
-    try {
-      await apiRequest("/student/resume-builder", { method: "POST", body: payload });
-      showToast("Resume saved!", "success");
-      renderResumePreview();
-    } catch (err) { showToast(err.message, "error"); }
-  });
-
-  ["rb-summary", "rb-skills", "rb-education", "rb-projects", "rb-experience", "rb-certifications", "rb-linkedin", "rb-github"].forEach((id) => {
-    document.getElementById(id).addEventListener("input", renderResumePreview);
-  });
+  initResumeBuilder();
 
   document.getElementById("upload-resume-btn").addEventListener("click", handleResumeUpload);
   document.getElementById("reanalyze-btn").addEventListener("click", handleReanalyze);
