@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import (
     User, StudentProfile, Drive, Application, Interview, Result,
-    Notification, AptitudeTest, AptitudeResult, CompanyProfile, compute_skill_level,
+    Notification, AptitudeTest, AptitudeResult, AssessmentAssignment, CompanyProfile, compute_skill_level,
 )
 from app.utils.ai_resume_analyzer import extract_text_from_pdf, analyze_resume, extract_skills
 
@@ -238,9 +238,32 @@ def list_aptitude_tests():
     user, err = require_student()
     if err:
         return err
+    from app.utils.skill_assessments import test_matches_branch
+
     test_type = request.args.get("type", "aptitude")
     tests = AptitudeTest.query.filter_by(test_type=test_type).all()
-    taken = {r.test_id: r for r in AptitudeResult.query.filter_by(student_id=user.id).all()}
+    student_branch = user.student_profile.branch if user.student_profile else ""
+
+    # Skill assessments are filtered to the student's branch (+ All Branches).
+    if test_type == "skill":
+        tests = [t for t in tests if test_matches_branch(t.branches or "All Branches", student_branch)]
+
+    # CDPC-created assessments are visible only after they are published and assigned.
+    if test_type == "cdpc":
+        assigned_ids = {a.test_id for a in AssessmentAssignment.query.filter_by(student_id=user.id).all()}
+        tests = [t for t in tests if t.published and t.created_by and t.id in assigned_ids]
+
+    taken_rows = (
+        AptitudeResult.query.filter_by(student_id=user.id)
+        .order_by(AptitudeResult.taken_at.desc())
+        .all()
+    )
+    # Keep latest attempt per test for card badges; also expose latest result id for review
+    taken = {}
+    for r in taken_rows:
+        if r.test_id not in taken:
+            taken[r.test_id] = r
+
     result = []
     for t in tests:
         item = t.to_dict()
@@ -248,8 +271,10 @@ def list_aptitude_tests():
             item["last_score"] = taken[t.id].score
             item["last_total"] = taken[t.id].total
             item["last_level"] = taken[t.id].level
+            item["last_result_id"] = taken[t.id].id
+            item["last_has_review"] = bool(taken[t.id].answers_json)
         result.append(item)
-    return jsonify({"tests": result})
+    return jsonify({"tests": result, "student_branch": student_branch})
 
 
 @student_bp.route("/aptitude-tests/<int:test_id>", methods=["GET"])
@@ -257,9 +282,19 @@ def get_aptitude_test(test_id):
     user, err = require_student()
     if err:
         return err
+    from app.utils.skill_assessments import test_matches_branch
+
     test = AptitudeTest.query.get(test_id)
     if not test:
         return jsonify({"error": "Test not found."}), 404
+    if test.test_type == "skill":
+        branch = user.student_profile.branch if user.student_profile else ""
+        if not test_matches_branch(test.branches or "All Branches", branch):
+            return jsonify({"error": "This assessment is not available for your branch."}), 403
+    if test.test_type == "cdpc":
+        assignment = AssessmentAssignment.query.filter_by(test_id=test.id, student_id=user.id).first()
+        if not test.published or not test.created_by or not assignment:
+            return jsonify({"error": "This assessment is not assigned to you."}), 403
     return jsonify({"test": test.to_dict(include_answers=False)})
 
 
@@ -268,22 +303,55 @@ def submit_aptitude_test(test_id):
     user, err = require_student()
     if err:
         return err
+    from app.utils.skill_assessments import test_matches_branch
+
     test = AptitudeTest.query.get(test_id)
     if not test:
         return jsonify({"error": "Test not found."}), 404
+    if test.test_type == "skill":
+        branch = user.student_profile.branch if user.student_profile else ""
+        if not test_matches_branch(test.branches or "All Branches", branch):
+            return jsonify({"error": "This assessment is not available for your branch."}), 403
+    assignment = None
+    if test.test_type == "cdpc":
+        assignment = AssessmentAssignment.query.filter_by(test_id=test.id, student_id=user.id).first()
+        if not test.published or not test.created_by or not assignment:
+            return jsonify({"error": "This assessment is not assigned to you."}), 403
+
     answers = request.get_json(force=True).get("answers", {})  # {question_index: selected_option_index}
+    # Normalize keys to strings for stable JSON storage
+    normalized = {str(k): (int(v) if v is not None and str(v).isdigit() else v) for k, v in answers.items()}
     questions = json.loads(test.questions_json or "[]")
     score = 0
     for idx, q in enumerate(questions):
-        given = answers.get(str(idx))
+        given = normalized.get(str(idx))
         if given is not None and int(given) == q.get("answer"):
             score += 1
 
     level = compute_skill_level(score, len(questions)) if test.test_type == "skill" else None
-    result = AptitudeResult(student_id=user.id, test_id=test_id, score=score, total=len(questions), level=level)
+    result = AptitudeResult(
+        student_id=user.id,
+        test_id=test_id,
+        score=score,
+        total=len(questions),
+        level=level,
+        answers_json=json.dumps(normalized),
+    )
     db.session.add(result)
+    if assignment:
+        assignment.status = "Completed"
     db.session.commit()
-    return jsonify({"message": "Test submitted.", "score": score, "total": len(questions), "level": level})
+    review = result.build_review()
+    return jsonify({
+        "message": "Test submitted.",
+        "result_id": result.id,
+        "score": score,
+        "total": len(questions),
+        "percent": round((score / len(questions)) * 100) if questions else 0,
+        "level": level,
+        "test_title": test.title,
+        "review": review,
+    })
 
 
 @student_bp.route("/aptitude-results", methods=["GET"])
@@ -297,3 +365,21 @@ def aptitude_results():
         q = q.join(AptitudeTest).filter(AptitudeTest.test_type == test_type)
     results = q.order_by(AptitudeResult.taken_at.desc()).all()
     return jsonify({"results": [r.to_dict() for r in results]})
+
+
+@student_bp.route("/aptitude-results/<int:result_id>/review", methods=["GET"])
+def aptitude_result_review(result_id):
+    """Return question-by-question review for a past attempt (answers + correct keys)."""
+    user, err = require_student()
+    if err:
+        return err
+    result = AptitudeResult.query.filter_by(id=result_id, student_id=user.id).first()
+    if not result:
+        return jsonify({"error": "Result not found."}), 404
+    if not result.answers_json:
+        return jsonify({"error": "No answer review is available for this attempt."}), 404
+    return jsonify({
+        "result": result.to_dict(),
+        "test_title": result.test.title if result.test else "",
+        "review": result.build_review(),
+    })

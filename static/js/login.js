@@ -22,6 +22,8 @@ const GOOGLE_ERROR_MESSAGES = {
 let selectedRole = "student";
 let registeredEmailPendingOtp = "";
 let resendCooldownTimer = null;
+let forgotResendCooldownTimer = null;
+let forgotPasswordEmail = "";
 
 function setRole(role) {
   selectedRole = role;
@@ -35,6 +37,9 @@ function setRole(role) {
 }
 
 function setTab(tab) {
+  if (tab !== "login" && document.getElementById("forgot-password-panel")?.style.display !== "none") {
+    closeForgotPassword();
+  }
   document.querySelectorAll(".login-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
   document.querySelectorAll(".login-form-panel").forEach((p) => p.classList.toggle("active", p.dataset.panel === tab));
   hideError();
@@ -108,8 +113,152 @@ function collectRegisterPayload() {
   return payload;
 }
 
+
+function showForgotStep(step) {
+  document.getElementById("forgot-email-step").style.display = step === "email" ? "block" : "none";
+  document.getElementById("forgot-otp-step").style.display = step === "otp" ? "block" : "none";
+  document.getElementById("forgot-reset-step").style.display = step === "reset" ? "block" : "none";
+}
+
+function startForgotResendCooldown(seconds = 30) {
+  const btn = document.getElementById("forgot-resend-otp-btn");
+  btn.disabled = true;
+  let remaining = seconds;
+  btn.textContent = `Resend Code (${remaining}s)`;
+  clearInterval(forgotResendCooldownTimer);
+  forgotResendCooldownTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(forgotResendCooldownTimer);
+      btn.disabled = false;
+      btn.textContent = "Resend Code";
+    } else {
+      btn.textContent = `Resend Code (${remaining}s)`;
+    }
+  }, 1000);
+}
+
+function openForgotPassword() {
+  document.getElementById("forgot-password-panel").style.display = "block";
+  document.getElementById("login-form").style.display = "none";
+  document.getElementById("google-login-btn").style.display = "none";
+  document.querySelector(".login-form-panel[data-panel='login'] .divider-with-text").style.display = "none";
+  document.querySelector(".login-form-panel[data-panel='login'] .demo-hint").style.display = "none";
+  showForgotStep("email");
+  hideError();
+  hideNotice();
+  document.getElementById("forgot-email").value = document.getElementById("login-email").value.trim();
+  document.getElementById("forgot-email").focus();
+}
+
+function closeForgotPassword() {
+  document.getElementById("forgot-password-panel").style.display = "none";
+  document.getElementById("login-form").style.display = "block";
+  document.getElementById("google-login-btn").style.display = "flex";
+  document.querySelector(".login-form-panel[data-panel='login'] .divider-with-text").style.display = "flex";
+  document.querySelector(".login-form-panel[data-panel='login'] .demo-hint").style.display = "block";
+  showForgotStep("email");
+  clearInterval(forgotResendCooldownTimer);
+  forgotPasswordEmail = "";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderStaticIcons();
+
+  // Password-reset controls
+  document.getElementById("forgot-password-btn").addEventListener("click", openForgotPassword);
+  document.getElementById("forgot-back-btn").addEventListener("click", closeForgotPassword);
+
+  document.getElementById("forgot-send-otp-btn").addEventListener("click", async () => {
+    hideError();
+    hideNotice();
+    const email = document.getElementById("forgot-email").value.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      showError("Please enter a valid email address.");
+      return;
+    }
+    const btn = document.getElementById("forgot-send-otp-btn");
+    btn.disabled = true;
+    btn.textContent = "Sending code...";
+    try {
+      const res = await apiRequest("/auth/forgot-password/send-otp", { method: "POST", body: { email } });
+      forgotPasswordEmail = email;
+      document.getElementById("forgot-otp-target-email").textContent = email;
+      showNotice(res.message);
+      showForgotStep("otp");
+      document.getElementById("forgot-otp").value = "";
+      document.getElementById("forgot-otp").focus();
+      startForgotResendCooldown();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send Reset Code";
+    }
+  });
+
+  document.getElementById("forgot-resend-otp-btn").addEventListener("click", async () => {
+    hideError();
+    try {
+      const res = await apiRequest("/auth/forgot-password/send-otp", { method: "POST", body: { email: forgotPasswordEmail } });
+      showNotice(res.message);
+      startForgotResendCooldown();
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  document.getElementById("forgot-verify-otp-btn").addEventListener("click", async () => {
+    hideError();
+    const otp = document.getElementById("forgot-otp").value.trim();
+    if (!/^\d{6}$/.test(otp)) {
+      showError("Please enter the 6-digit verification code.");
+      return;
+    }
+    const btn = document.getElementById("forgot-verify-otp-btn");
+    btn.disabled = true;
+    btn.textContent = "Verifying...";
+    try {
+      const res = await apiRequest("/auth/forgot-password/verify-otp", { method: "POST", body: { email: forgotPasswordEmail, otp } });
+      showNotice(res.message);
+      showForgotStep("reset");
+      document.getElementById("forgot-new-password").focus();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Verify Code";
+    }
+  });
+
+  document.getElementById("forgot-reset-btn").addEventListener("click", async () => {
+    hideError();
+    const newPassword = document.getElementById("forgot-new-password").value;
+    const confirmPassword = document.getElementById("forgot-confirm-password").value;
+    if (newPassword.length < 6) {
+      showError("Password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showError("Passwords do not match.");
+      return;
+    }
+    const btn = document.getElementById("forgot-reset-btn");
+    btn.disabled = true;
+    btn.textContent = "Resetting...";
+    try {
+      const res = await apiRequest("/auth/forgot-password/reset", { method: "POST", body: { new_password: newPassword, confirm_password: confirmPassword } });
+      showToast(res.message, "success");
+      document.getElementById("login-email").value = forgotPasswordEmail;
+      document.getElementById("login-password").value = "";
+      closeForgotPassword();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Reset Password";
+    }
+  });
 
   const params = new URLSearchParams(window.location.search);
   const roleParam = params.get("role");
@@ -145,10 +294,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Google buttons — real browser navigation (OAuth requires a full redirect,
   // not a fetch call), server decides whether it's actually configured.
   document.getElementById("google-login-btn").addEventListener("click", () => {
-    window.location.href = `/api/auth/google/login?role=${selectedRole}`;
+    window.RgLoader ? RgLoader.navigate(`/api/auth/google/login?role=${selectedRole}`, "Connecting to Google…") : (window.location.href = `/api/auth/google/login?role=${selectedRole}`);
   });
   document.getElementById("google-register-btn").addEventListener("click", () => {
-    window.location.href = `/api/auth/google/login?role=${selectedRole}`;
+    window.RgLoader ? RgLoader.navigate(`/api/auth/google/login?role=${selectedRole}`, "Connecting to Google…") : (window.location.href = `/api/auth/google/login?role=${selectedRole}`);
   });
 
   // ---- Sign in ----
@@ -163,7 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const data = await apiRequest("/auth/login", { method: "POST", body: { email, password, role: selectedRole } });
       showToast(`Welcome back, ${data.user.name.split(" ")[0]}!`, "success");
-      setTimeout(() => (window.location.href = ROLE_ROUTES[data.user.role]), 500);
+      setTimeout(() => (window.RgLoader ? RgLoader.navigate(ROLE_ROUTES[data.user.role], "Signing you in…") : (window.location.href = ROLE_ROUTES[data.user.role])), 400);
     } catch (err) {
       showError(err.message);
       btn.disabled = false;
@@ -235,7 +384,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const data = await apiRequest("/auth/register", { method: "POST", body: payload });
       showToast(`Account created! Welcome, ${data.user.name.split(" ")[0]}.`, "success");
-      setTimeout(() => (window.location.href = ROLE_ROUTES[data.user.role]), 500);
+      setTimeout(() => (window.RgLoader ? RgLoader.navigate(ROLE_ROUTES[data.user.role], "Signing you in…") : (window.location.href = ROLE_ROUTES[data.user.role])), 400);
     } catch (err) {
       showError(err.message);
       btn.disabled = false;

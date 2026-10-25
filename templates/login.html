@@ -5,12 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sign In | RGUKT Ongole Placement Portal</title>
 <link rel="icon" href="{{ url_for('static', filename='images/rgukt-logo.png') }}" />
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("rgukt-theme");
+    if (!t) t = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/loader.css') }}" />
+<script src="{{ url_for('static', filename='js/loader.js') }}"></script>
 </head>
 <body>
+{% include 'partials/preloader.html' %}
 
 <div class="login-wrap">
   <div class="login-brand-panel">
@@ -18,19 +33,25 @@
       <img src="{{ url_for('static', filename='images/rgukt-logo.png') }}" alt="RGUKT Ongole logo" />
       <div>
         <div class="l1">RGUKT ONGOLE</div>
-        <div class="l2">CDPC Placement Portal</div>
+        <div class="l2">Training &amp; Placement Cell</div>
       </div>
     </div>
     <div class="lbp-quote">
-      <h2>Where <em>ambition</em> meets opportunity.</h2>
-      <p>One shared sign-in for students, the Career Development &amp; Placement Cell, and every recruiting company on campus — each with their own dashboard, built for how they actually work.</p>
+      <h2>Elevating rural talent to <em>global innovation</em>.</h2>
+      <p>One shared sign-in for students, the Training &amp; Placement Cell, and every recruiting company on campus — each with their own dashboard, built for how they actually work.</p>
     </div>
-    <div class="lbp-foot">&copy; 2026 RGUKT Ongole &middot; Career Development &amp; Placement Cell</div>
+    <div class="lbp-foot">&copy; 2026 RGUKT Ongole &middot; Training &amp; Placement Cell</div>
   </div>
 
   <div class="login-form-side">
     <div class="login-box">
-      <a href="/" class="back-link"><span data-icon="chevron-right" data-icon-size="14" style="transform:rotate(180deg);"></span> Back to home</a>
+      <div class="login-top-bar">
+        <a href="/" class="back-link"><span data-icon="chevron-right" data-icon-size="14" style="transform:rotate(180deg);"></span> Back to home</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark theme" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+      </div>
 
       <div class="login-heading">
         <h2 id="role-title">Student</h2>
@@ -72,6 +93,54 @@
           </div>
           <button type="submit" id="login-submit-btn" class="btn btn-primary btn-block">Sign In</button>
         </form>
+        <div style="text-align:right; margin-top:10px;">
+          <button type="button" id="forgot-password-btn" class="btn btn-ghost btn-sm">Forgot Password?</button>
+        </div>
+        <div id="forgot-password-panel" class="forgot-password-panel" style="display:none;">
+          <div class="divider-with-text"><span>Reset your password</span></div>
+
+          <!-- Step 1: email -->
+          <div id="forgot-email-step">
+            <p class="text-sm text-secondary mb-16">Enter your registered email. We'll send a 6-digit verification code.</p>
+            <div class="field">
+              <label>Email Address</label>
+              <input type="email" id="forgot-email" placeholder="you@example.com" autocomplete="email" />
+            </div>
+            <button type="button" id="forgot-send-otp-btn" class="btn btn-primary btn-block">Send Reset Code</button>
+            <button type="button" id="forgot-back-btn" class="btn btn-outline btn-block mt-8">Back to Sign In</button>
+          </div>
+
+          <!-- Step 2: OTP -->
+          <div id="forgot-otp-step" style="display:none;">
+            <p class="text-sm text-secondary mb-16">Enter the 6-digit code sent to <b id="forgot-otp-target-email"></b>.</p>
+            <div class="field">
+              <label>Verification Code</label>
+              <input type="text" id="forgot-otp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" />
+            </div>
+            <button type="button" id="forgot-verify-otp-btn" class="btn btn-primary btn-block">Verify Code</button>
+            <button type="button" id="forgot-resend-otp-btn" class="btn btn-outline btn-block mt-8">Resend Code</button>
+          </div>
+
+          <!-- Step 3: new password -->
+          <div id="forgot-reset-step" style="display:none;">
+            <p class="text-sm text-secondary mb-16">Create a new password for your account.</p>
+            <div class="field">
+              <label>New Password</label>
+              <div class="password-field-wrap">
+                <input type="password" id="forgot-new-password" minlength="6" placeholder="Min 6 characters" autocomplete="new-password" />
+                <button type="button" class="password-toggle-btn" data-target="forgot-new-password" aria-label="Show password"><span data-icon="eye" data-icon-size="15"></span></button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Confirm New Password</label>
+              <div class="password-field-wrap">
+                <input type="password" id="forgot-confirm-password" minlength="6" placeholder="Repeat your new password" autocomplete="new-password" />
+                <button type="button" class="password-toggle-btn" data-target="forgot-confirm-password" aria-label="Show password"><span data-icon="eye" data-icon-size="15"></span></button>
+              </div>
+            </div>
+            <button type="button" id="forgot-reset-btn" class="btn btn-primary btn-block">Reset Password</button>
+          </div>
+        </div>
         <div class="demo-hint">
           <b>Demo login for this role:</b><br />
           Email: <span id="demo-email"></span><br />

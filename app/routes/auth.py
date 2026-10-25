@@ -3,7 +3,12 @@ from werkzeug.utils import secure_filename
 from flask import Blueprint, request, jsonify, session, redirect, url_for, current_app
 from app.extensions import db, oauth
 from app.models import User, StudentProfile, CompanyProfile, CDPCProfile, Notification, EmailOTP
-from app.utils.email_utils import generate_otp, send_otp_email, otp_expiry
+import time
+from app.utils.email_utils import generate_otp, send_otp_email, otp_expiry, smtp_configured
+
+# email -> unix time of the last reset request. Kept in memory (not the DB) so the
+# cooldown applies identically whether or not the account exists (no enumeration).
+_reset_last_request = {}
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -46,7 +51,11 @@ def _create_profile_for_role(user, role, data, name):
 def auth_config():
     """Lets the frontend know whether Google Sign-In is actually configured,
     instead of showing a button that would otherwise fail silently."""
-    return jsonify({"google_oauth_enabled": current_app.config.get("GOOGLE_OAUTH_ENABLED", False)})
+    return jsonify({
+        "google_oauth_enabled": current_app.config.get("GOOGLE_OAUTH_ENABLED", False),
+        "email_configured": smtp_configured(),
+        "otp_resend_seconds": current_app.config["OTP_RESEND_SECONDS"],
+    })
 
 
 # ---------------- Email OTP verification ----------------
@@ -74,7 +83,7 @@ def send_otp():
     sent_via_smtp, err = send_otp_email(email, otp, purpose)
     return jsonify({
         "message": "Verification code sent to your email." if sent_via_smtp
-        else "Verification code generated. SMTP isn't configured on this server, so it was printed to the server console instead — check the terminal running run.py.",
+        else "Email delivery is not configured on this server (see .env.example), so the code was printed to the server console instead.",
         "sent_via_smtp": sent_via_smtp,
     })
 
@@ -100,6 +109,126 @@ def _verify_otp_or_error(email, otp, purpose="register"):
     db.session.delete(record)
     db.session.commit()
     return None
+
+
+# ---------------- Forgot password / password reset ----------------
+
+@auth_bp.route("/forgot-password/send-otp", methods=["POST"])
+def forgot_password_send_otp():
+    """Start a password reset with an email OTP.
+
+    The response deliberately does not reveal whether the email exists. This
+    prevents account-enumeration through the forgot-password form.
+    """
+    data = request.get_json(force=True)
+    email = (data.get("email") or "").strip().lower()
+
+    if not email or "@" not in email:
+        return jsonify({"error": "Please enter a valid email address."}), 400
+
+    # Cooldown (same for existing and non-existing accounts).
+    cooldown = current_app.config["OTP_RESEND_SECONDS"]
+    wait = cooldown - (time.time() - _reset_last_request.get(email, 0))
+    if wait > 0:
+        return jsonify({
+            "error": f"Please wait {int(wait) + 1} seconds before requesting another code.",
+            "retry_after": int(wait) + 1,
+        }), 429
+    _reset_last_request[email] = time.time()
+
+    configured = smtp_configured()
+    generic = ("A 6-digit verification code has been sent to your email. It is valid for "
+               f"{current_app.config['OTP_EXPIRY_MINUTES']} minutes. Check your Spam folder if you don't see it.")
+    if not configured:
+        generic = ("Email delivery isn't configured on this server yet, so the code was printed in the "
+                   "server console (see .env.example to enable real emails).")
+
+    # The outward response is identical whether or not the account exists.
+    user = User.query.filter_by(email=email).first()
+    if user:
+        EmailOTP.query.filter_by(email=email, purpose="forgot_password").delete()
+        otp = generate_otp()
+        record = EmailOTP(email=email, purpose="forgot_password", expires_at=otp_expiry())
+        record.set_otp(otp)
+        db.session.add(record)
+        db.session.commit()
+        sent_via_smtp, err = send_otp_email(email, otp, purpose="forgot_password")
+        if configured and not sent_via_smtp:
+            # Server-side misconfiguration (bad app password, network...) - not
+            # account-specific, so it is safe and far more useful to surface it.
+            return jsonify({"error": "We couldn't send the email right now. Please try again in a moment "
+                                     "or contact the CDPC office.", "detail": err}), 502
+
+    return jsonify({"message": generic, "sent_via_smtp": configured})
+
+
+@auth_bp.route("/forgot-password/verify-otp", methods=["POST"])
+def forgot_password_verify_otp():
+    data = request.get_json(force=True)
+    email = (data.get("email") or "").strip().lower()
+    otp = (data.get("otp") or "").strip()
+
+    if not email or not otp:
+        return jsonify({"error": "Please enter your email and 6-digit verification code."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Invalid or expired verification code."}), 400
+
+    otp_error = _verify_otp_or_error(email, otp, purpose="forgot_password")
+    if otp_error:
+        return otp_error
+
+    # The verified email is stored only in the signed Flask session and is
+    # valid for a short period. No password can be changed without this step.
+    from datetime import datetime
+    session["password_reset_email"] = email
+    session["password_reset_verified_at"] = datetime.utcnow().timestamp()
+    return jsonify({"message": "Code verified. You can now create a new password."})
+
+
+@auth_bp.route("/forgot-password/reset", methods=["POST"])
+def forgot_password_reset():
+    data = request.get_json(force=True)
+    new_password = data.get("new_password") or ""
+    confirm_password = data.get("confirm_password") or ""
+
+    email = session.get("password_reset_email")
+    verified_at = session.get("password_reset_verified_at")
+    if not email or not verified_at:
+        return jsonify({"error": "Please verify the password-reset code first."}), 400
+
+    from datetime import datetime, timedelta
+    verified_time = datetime.fromtimestamp(float(verified_at))
+    if datetime.utcnow() - verified_time > timedelta(minutes=current_app.config["PASSWORD_RESET_SESSION_MINUTES"]):
+        session.pop("password_reset_email", None)
+        session.pop("password_reset_verified_at", None)
+        return jsonify({"error": "Your password-reset session has expired. Please request a new code."}), 400
+
+    if len(new_password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters long."}), 400
+    if new_password != confirm_password:
+        return jsonify({"error": "Passwords do not match."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        session.pop("password_reset_email", None)
+        session.pop("password_reset_verified_at", None)
+        return jsonify({"error": "Unable to reset the password. Please start again."}), 400
+
+    user.set_password(new_password)
+    # A successful password reset means this account can authenticate with
+    # email/password. Google identity, if present, is intentionally retained.
+    user.auth_provider = "password"
+    user.email_verified = True
+    db.session.commit()
+
+    session.pop("password_reset_email", None)
+    session.pop("password_reset_verified_at", None)
+    session.pop("user_id", None)
+    session.pop("role", None)
+
+    return jsonify({"message": "Password reset successfully. Please sign in with your new password."})
 
 
 # ---------------- Manual registration / login ----------------

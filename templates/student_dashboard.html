@@ -5,6 +5,7 @@
 {% include 'partials/head_common.html' %}
 </head>
 <body>
+{% include 'partials/preloader.html' %}
 
 <div class="app-shell">
   <!-- SIDEBAR -->
@@ -53,6 +54,10 @@
       </div>
     </div>
     <div class="navbar-actions">
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark theme" title="Toggle theme">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
       {% include 'partials/notification_dropdown.html' %}
       <div class="dropdown-wrap">
         <button class="icon-btn" onclick="toggleDropdown('settings-panel')"><span data-icon="settings"></span></button>
@@ -62,7 +67,11 @@
             <button onclick="openModal('change-password-modal')"><span data-icon="settings" data-icon-size="15"></span> Change Password</button>
             <button onclick="openModal('edit-profile-modal')"><span data-icon="file-text" data-icon-size="15"></span> Edit Profile</button>
             <div class="divider"></div>
-            <div style="padding:10px 12px; font-size:0.8rem; color:var(--text-muted);">Theme: Dark (default)</div>
+            <button type="button" class="theme-toggle is-row">
+              <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"/></svg>
+              <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+              Toggle light / dark theme
+            </button>
           </div>
         </div>
       </div>
@@ -167,27 +176,167 @@
 
     <!-- RESUME CREATOR -->
     <section class="view-section" id="view-resume-creator">
-      <div class="page-header"><div><h1>Resume Creator</h1><p>Fill in your details to build a clean, ATS-friendly resume.</p></div></div>
-      <div class="grid-2">
-        <div class="card card-pad">
-          <form id="resume-builder-form">
-            <div class="field"><label>Professional Summary</label><textarea id="rb-summary" placeholder="A short 2-3 line summary about you..."></textarea></div>
-            <div class="field"><label>Skills (comma separated)</label><input type="text" id="rb-skills" placeholder="Python, Java, React, SQL" /></div>
-            <div class="field"><label>Education</label><textarea id="rb-education" placeholder="B.Tech in CSE, RGUKT Ongole — CGPA 8.6 (2022-2026)"></textarea></div>
-            <div class="field"><label>Projects</label><textarea id="rb-projects" placeholder="Project Name — one line description&#10;Another Project — description"></textarea></div>
-            <div class="field"><label>Experience / Internships</label><textarea id="rb-experience" placeholder="Company — Role — Duration — What you did"></textarea></div>
-            <div class="field"><label>Certifications & Achievements</label><textarea id="rb-certifications" placeholder="Certification / Award — Year"></textarea></div>
+      <div class="page-header">
+        <div>
+          <h1>Resume Creator</h1>
+          <p>Advanced ATS-ready builder with branch samples, templates, and live preview.</p>
+        </div>
+        <div class="flex gap-8" style="flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline btn-sm" id="rb-import-profile">Import from Profile</button>
+          <button type="button" class="btn btn-outline btn-sm" id="rb-sample-btn">Fill branch sample</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="rb-save-btn">Save Resume</button>
+          <button type="button" class="btn btn-primary btn-sm" id="rb-export-pdf"><span data-icon="download" data-icon-size="14"></span> Export PDF</button>
+        </div>
+      </div>
+
+      <div class="rb-toolbar card card-pad mb-16">
+        <div class="flex justify-between items-center gap-16" style="flex-wrap:wrap;">
+          <div class="rb-completeness" style="flex:1; min-width:220px;">
+            <div class="flex justify-between text-sm mb-8"><span>Resume completeness</span><b id="rb-completeness-label">0%</b></div>
+            <div class="progress-track"><div class="progress-fill" id="rb-completeness-bar" style="width:0%"></div></div>
+          </div>
+          <div class="field" style="margin:0; min-width:180px;">
+            <label>Template</label>
+            <select id="rb-template">
+              <option value="classic">Classic Professional</option>
+              <option value="modern">Modern Sidebar</option>
+              <option value="minimal">Minimal Clean</option>
+              <option value="campus">Campus Placement</option>
+              <option value="executive">Executive Split</option>
+              <option value="compact">Compact One-page</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0; min-width:140px;">
+            <label>Accent</label>
+            <select id="rb-accent">
+              <option value="#7a1f2b">RGUKT Maroon</option>
+              <option value="#2f6b4f">Campus Green</option>
+              <option value="#2a6f82">Teal</option>
+              <option value="#1e3a5f">Navy</option>
+              <option value="#333333">Charcoal</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0; min-width:140px;">
+            <label>Type size</label>
+            <select id="rb-font-scale">
+              <option value="0.92">Compact</option>
+              <option value="1" selected>Standard</option>
+              <option value="1.08">Large</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex gap-8 mt-16" style="flex-wrap:wrap;">
+          <button type="button" class="btn btn-ghost btn-sm" id="rb-gen-summary">Generate summary</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="rb-export-json">Export JSON</button>
+          <label class="btn btn-ghost btn-sm" for="rb-import-json" style="cursor:pointer;">Import JSON</label>
+          <input type="file" id="rb-import-json" accept="application/json" style="display:none;" />
+        </div>
+      </div>
+
+      <div class="grid-2 rb-layout">
+        <div class="rb-editor flex-col gap-16">
+          <div class="card card-pad">
+            <h3 class="mb-16">Personal Details</h3>
+            <div class="field-row">
+              <div class="field"><label>Full Name</label><input type="text" id="rb-name" placeholder="Your full name" /></div>
+              <div class="field"><label>Headline / Target Role</label><input type="text" id="rb-headline" placeholder="e.g. Aspiring Software Engineer" /></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Email</label><input type="email" id="rb-email" /></div>
+              <div class="field"><label>Phone</label><input type="text" id="rb-phone" /></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>Location</label><input type="text" id="rb-location" placeholder="Ongole, Andhra Pradesh" /></div>
+              <div class="field"><label>Portfolio / Website</label><input type="text" id="rb-website" placeholder="yourportfolio.com" /></div>
+            </div>
             <div class="field-row">
               <div class="field"><label>LinkedIn</label><input type="text" id="rb-linkedin" placeholder="linkedin.com/in/you" /></div>
               <div class="field"><label>GitHub</label><input type="text" id="rb-github" placeholder="github.com/you" /></div>
             </div>
-            <button type="submit" class="btn btn-primary btn-block">Save Resume</button>
-          </form>
+            <div class="field"><label>Professional Summary</label><textarea id="rb-summary" rows="3" placeholder="2–4 lines highlighting strengths, branch expertise, and career goal..."></textarea></div>
+            <div class="field"><label>Interests / Extra-curricular</label><input type="text" id="rb-interests" placeholder="IEEE, robotics club, open source, sports..." /></div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Skills</h3>
+              <button type="button" class="btn btn-outline btn-sm" id="rb-add-skill-cat">+ Category</button>
+            </div>
+            <div id="rb-skills-list" class="rb-entries"></div>
+            <p class="field-hint">Group skills by Languages, Frameworks, Tools, Soft Skills, etc.</p>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Education</h3>
+              <button type="button" class="btn btn-outline btn-sm" data-rb-add="education">+ Add</button>
+            </div>
+            <div id="rb-education-list" class="rb-entries"></div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Experience / Internships</h3>
+              <button type="button" class="btn btn-outline btn-sm" data-rb-add="experience">+ Add</button>
+            </div>
+            <div id="rb-experience-list" class="rb-entries"></div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Projects</h3>
+              <button type="button" class="btn btn-outline btn-sm" data-rb-add="projects">+ Add</button>
+            </div>
+            <div id="rb-projects-list" class="rb-entries"></div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Certifications</h3>
+              <button type="button" class="btn btn-outline btn-sm" data-rb-add="certifications">+ Add</button>
+            </div>
+            <div id="rb-certifications-list" class="rb-entries"></div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Achievements</h3>
+              <button type="button" class="btn btn-outline btn-sm" data-rb-add="achievements">+ Add</button>
+            </div>
+            <div id="rb-achievements-list" class="rb-entries"></div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Languages</h3>
+              <button type="button" class="btn btn-outline btn-sm" data-rb-add="languages">+ Add</button>
+            </div>
+            <div id="rb-languages-list" class="rb-entries"></div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Custom Sections</h3>
+              <button type="button" class="btn btn-outline btn-sm" data-rb-add="customSections">+ Add</button>
+            </div>
+            <div id="rb-custom-list" class="rb-entries"></div>
+            <p class="field-hint">Use for Publications, Positions of Responsibility, Workshops, etc.</p>
+          </div>
         </div>
-        <div class="card card-pad">
-          <h3 class="mb-16">Live Preview</h3>
-          <div id="resume-preview" style="background:#fff; color:#111; border-radius:10px; padding:24px; font-size:0.82rem; line-height:1.6; max-height:640px; overflow-y:auto;"></div>
-          <button class="btn btn-outline btn-block mt-16" onclick="printResume()"><span data-icon="download" data-icon-size="15"></span> Print / Save as PDF</button>
+
+        <div class="rb-preview-col flex-col gap-16">
+          <div class="card card-pad" id="rb-ats-card">
+            <h3 class="mb-8">ATS checklist</h3>
+            <p class="text-muted text-sm mb-16">Tips update as you fill the resume. Recruiters and parsers look for these.</p>
+            <div id="rb-ats-tips"></div>
+          </div>
+          <div class="card card-pad rb-preview-panel">
+            <div class="flex justify-between items-center mb-16">
+              <h3>Live Preview</h3>
+              <span class="badge badge-muted" id="rb-template-label">Classic</span>
+            </div>
+            <div id="resume-preview" class="rb-preview tpl-classic"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -200,23 +349,34 @@
       <div class="card">
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>Test</th><th>Score</th><th>Date</th></tr></thead>
-            <tbody id="aptitude-history-tbody"><tr><td colspan="3" class="text-muted" style="padding:16px;">No attempts yet.</td></tr></tbody>
+            <thead><tr><th>Test</th><th>Score</th><th>Date</th><th></th></tr></thead>
+            <tbody id="aptitude-history-tbody"><tr><td colspan="4" class="text-muted" style="padding:16px;">No attempts yet.</td></tr></tbody>
           </table>
         </div>
       </div>
     </section>
 
     <!-- SKILL ASSESSMENT -->
+    <section class="view-section" id="view-cdpc-assessments">
+      <div class="page-header"><div><h1>CDPC Assessments</h1><p>Assessments assigned by the Career Development &amp; Placement Cell.</p></div></div>
+      <div class="grid-cards" id="cdpc-assessment-grid"><div class="loading-row"><div class="spinner"></div></div></div>
+    </section>
+
     <section class="view-section" id="view-skill-assessment">
-      <div class="page-header"><div><h1>Skill Assessment</h1><p>Test your technical skills and earn a proficiency level companies can see.</p></div></div>
+      <div class="page-header">
+        <div>
+          <h1>Skill Assessment</h1>
+          <p id="skill-branch-lead">Branch-relevant technical assessments tailored to your engineering stream.</p>
+        </div>
+        <span class="badge badge-purple" id="skill-branch-badge" style="font-size:0.8rem; padding:8px 14px;">—</span>
+      </div>
       <div class="grid-cards" id="skill-grid"><div class="loading-row"><div class="spinner"></div></div></div>
       <h3 class="mt-24 mb-16">Your Attempt History</h3>
       <div class="card">
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>Skill</th><th>Score</th><th>Level</th><th>Date</th></tr></thead>
-            <tbody id="skill-history-tbody"><tr><td colspan="4" class="text-muted" style="padding:16px;">No attempts yet.</td></tr></tbody>
+            <thead><tr><th>Skill</th><th>Score</th><th>Level</th><th>Date</th><th></th></tr></thead>
+            <tbody id="skill-history-tbody"><tr><td colspan="5" class="text-muted" style="padding:16px;">No attempts yet.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -380,17 +540,40 @@
 
 <div class="modal-overlay" id="aptitude-test-modal">
   <div class="modal-box modal-wide">
-    <div class="modal-header"><h3 id="apt-title">Aptitude Test</h3><button class="modal-close" onclick="closeModal('aptitude-test-modal')"><span data-icon="x"></span></button></div>
+    <div class="modal-header">
+      <h3 id="apt-title">Aptitude Test</h3>
+      <span class="badge badge-orange" id="apt-timer">—</span>
+      <button class="modal-close" onclick="closeModal('aptitude-test-modal')"><span data-icon="x"></span></button>
+    </div>
     <div class="modal-body" id="apt-body"></div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="apt-footer">
       <button class="btn btn-outline" onclick="closeModal('aptitude-test-modal')">Cancel</button>
       <button class="btn btn-primary" id="apt-submit-btn">Submit Test</button>
     </div>
   </div>
 </div>
 
+<div class="modal-overlay" id="assessment-review-modal">
+  <div class="modal-box modal-wide">
+    <div class="modal-header">
+      <h3 id="review-title">Assessment Review</h3>
+      <button class="modal-close" onclick="closeModal('assessment-review-modal')"><span data-icon="x"></span></button>
+    </div>
+    <div class="modal-body">
+      <div id="review-summary" class="review-summary mb-16"></div>
+      <div id="review-body" class="review-body"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('assessment-review-modal')">Done</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/resume-builder.js') }}"></script>
 <script src="{{ url_for('static', filename='js/student.js') }}"></script>
+<script src="{{ url_for('static', filename='js/advanced.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pro.js') }}"></script>
 </body>
 </html>

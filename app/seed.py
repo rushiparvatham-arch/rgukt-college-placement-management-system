@@ -143,47 +143,5 @@ def seed_data():
     db.session.add(AptitudeTest(title="Logical Reasoning - Set 1", category="Reasoning", test_type="aptitude", duration_minutes=15, questions_json=json.dumps(logical_questions)))
     db.session.add(AptitudeTest(title="Verbal Ability - Set 1", category="Verbal", test_type="aptitude", duration_minutes=10, questions_json=json.dumps(verbal_questions)))
 
-    # ---- Skill Assessments (same table, test_type='skill') ----
-    python_questions = [
-        {"question": "What is the output of: print(type([]))?", "options": ["<class 'list'>", "<class 'array'>", "<class 'tuple'>", "<class 'dict'>"], "answer": 0},
-        {"question": "Which keyword is used to define a function in Python?", "options": ["func", "def", "function", "lambda"], "answer": 1},
-        {"question": "What does len('RGUKT') return?", "options": ["4", "5", "6", "Error"], "answer": 1},
-        {"question": "Which data structure uses key-value pairs in Python?", "options": ["List", "Tuple", "Set", "Dictionary"], "answer": 3},
-        {"question": "What is the correct file extension for Python files?", "options": [".pt", ".py", ".pyt", ".pyth"], "answer": 1},
-        {"question": "Which of these is used for exception handling?", "options": ["try/except", "catch/throw", "error/handle", "if/else"], "answer": 0},
-    ]
-    sql_questions = [
-        {"question": "Which SQL clause is used to filter rows?", "options": ["ORDER BY", "WHERE", "GROUP BY", "HAVING"], "answer": 1},
-        {"question": "Which command is used to remove a table completely?", "options": ["DELETE", "REMOVE", "DROP", "TRUNCATE TABLE"], "answer": 2},
-        {"question": "What does JOIN do in SQL?", "options": ["Deletes rows", "Combines rows from two or more tables", "Sorts a table", "Creates a table"], "answer": 1},
-        {"question": "Which keyword returns only distinct values?", "options": ["UNIQUE", "DISTINCT", "ONLY", "SINGLE"], "answer": 1},
-        {"question": "Which clause groups rows sharing a property so aggregate functions can be applied?", "options": ["WHERE", "ORDER BY", "GROUP BY", "FILTER"], "answer": 2},
-    ]
-    webdev_questions = [
-        {"question": "Which HTML tag is used to link an external CSS file?", "options": ["<style>", "<link>", "<css>", "<script>"], "answer": 1},
-        {"question": "In CSS, which property controls text size?", "options": ["text-style", "font-size", "text-size", "font-style"], "answer": 1},
-        {"question": "Which JavaScript method adds an element to the end of an array?", "options": ["push()", "pop()", "shift()", "unshift()"], "answer": 0},
-        {"question": "What does the 'fetch' function in JavaScript primarily do?", "options": ["Style elements", "Make network/HTTP requests", "Define variables", "Loop over arrays"], "answer": 1},
-        {"question": "Which CSS layout model is commonly used for responsive grids?", "options": ["Flexbox/Grid", "Table only", "Float only", "Inline only"], "answer": 0},
-    ]
-    dsa_questions = [
-        {"question": "What is the time complexity of binary search on a sorted array?", "options": ["O(n)", "O(log n)", "O(n^2)", "O(1)"], "answer": 1},
-        {"question": "Which data structure uses LIFO (Last In First Out) order?", "options": ["Queue", "Stack", "Array", "Linked List"], "answer": 1},
-        {"question": "Which sorting algorithm has the best average-case time complexity?", "options": ["Bubble Sort", "Selection Sort", "Merge Sort", "Insertion Sort"], "answer": 2},
-        {"question": "In a singly linked list, each node's pointer refers to:", "options": ["The previous node", "The next node", "The head node", "The tail node"], "answer": 1},
-        {"question": "Which data structure is ideal for implementing BFS traversal?", "options": ["Stack", "Queue", "Heap", "Trie"], "answer": 1},
-    ]
-    comm_questions = [
-        {"question": "In a formal email to a recruiter, which greeting is most appropriate?", "options": ["Hey!", "Dear Sir/Madam,", "Yo,", "Hiya"], "answer": 1},
-        {"question": "Which of the following best demonstrates active listening in an interview?", "options": ["Interrupting frequently", "Paraphrasing what the interviewer said", "Checking your phone", "Staying silent throughout"], "answer": 1},
-        {"question": "What is the best way to handle a question you don't know the answer to in an interview?", "options": ["Make up an answer confidently", "Admit it and describe how you'd find out", "Stay silent", "Change the topic"], "answer": 1},
-        {"question": "Which is a good practice while presenting a project to a panel?", "options": ["Reading slides word-for-word", "Making eye contact and explaining in your own words", "Speaking very fast to save time", "Avoiding questions"], "answer": 1},
-    ]
-
-    db.session.add(AptitudeTest(title="Python Programming", category="Python", test_type="skill", duration_minutes=12, questions_json=json.dumps(python_questions)))
-    db.session.add(AptitudeTest(title="SQL & Databases", category="SQL", test_type="skill", duration_minutes=10, questions_json=json.dumps(sql_questions)))
-    db.session.add(AptitudeTest(title="Web Development Basics", category="Web Dev", test_type="skill", duration_minutes=10, questions_json=json.dumps(webdev_questions)))
-    db.session.add(AptitudeTest(title="Data Structures & Algorithms", category="DSA", test_type="skill", duration_minutes=10, questions_json=json.dumps(dsa_questions)))
-    db.session.add(AptitudeTest(title="Communication Skills", category="Soft Skills", test_type="skill", duration_minutes=8, questions_json=json.dumps(comm_questions)))
-
+    # Skill assessments are upserted on every startup via sync_skill_assessments().
     db.session.commit()

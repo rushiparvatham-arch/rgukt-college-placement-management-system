@@ -334,22 +334,48 @@ class AptitudeTest(db.Model):
     category = db.Column(db.String(50), default="General")
     test_type = db.Column(db.String(20), default="aptitude")  # aptitude | skill
     duration_minutes = db.Column(db.Integer, default=15)
+    # Comma-separated branch names, or "All Branches" for shared assessments
+    branches = db.Column(db.String(255), default="All Branches")
     questions_json = db.Column(db.Text)  # JSON string of question list
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    published = db.Column(db.Boolean, default=True)
+
+    creator = db.relationship("User", foreign_keys=[created_by])
+    assignments = db.relationship("AssessmentAssignment", backref="test", cascade="all, delete-orphan")
 
     def to_dict(self, include_answers=False):
         import json
         questions = json.loads(self.questions_json or "[]")
         if not include_answers:
-            questions = [{k: v for k, v in q.items() if k != "answer"} for q in questions]
+            questions = [
+                {k: v for k, v in q.items() if k not in ("answer", "explanation")}
+                for q in questions
+            ]
         return {
             "id": self.id,
             "title": self.title,
             "category": self.category,
             "test_type": self.test_type,
             "duration_minutes": self.duration_minutes,
+            "branches": self.branches or "All Branches",
+            "created_by": self.created_by,
+            "published": self.published,
             "questions": questions,
             "total_questions": len(questions),
         }
+
+
+class AssessmentAssignment(db.Model):
+    __tablename__ = "assessment_assignments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    test_id = db.Column(db.Integer, db.ForeignKey("aptitude_tests.id"), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default="Assigned")  # Assigned | Completed
+
+    student = db.relationship("User", foreign_keys=[student_id])
+    __table_args__ = (db.UniqueConstraint("test_id", "student_id", name="uq_assessment_student"),)
 
 
 class AptitudeResult(db.Model):
@@ -361,6 +387,7 @@ class AptitudeResult(db.Model):
     score = db.Column(db.Integer, default=0)
     total = db.Column(db.Integer, default=0)
     level = db.Column(db.String(20))  # Beginner / Intermediate / Advanced — used for skill-type tests
+    answers_json = db.Column(db.Text)  # student's submitted answers for review
     taken_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     test = db.relationship("AptitudeTest")
@@ -375,8 +402,32 @@ class AptitudeResult(db.Model):
             "total": self.total,
             "percent": round((self.score / self.total) * 100) if self.total else 0,
             "level": self.level,
+            "has_review": bool(self.answers_json),
             "taken_at": self.taken_at.strftime("%d %b %Y"),
         }
+
+    def build_review(self):
+        import json
+        questions = json.loads(self.test.questions_json or "[]") if self.test else []
+        answers = json.loads(self.answers_json or "{}")
+        review = []
+        for idx, q in enumerate(questions):
+            selected_raw = answers.get(str(idx), answers.get(idx))
+            selected = int(selected_raw) if selected_raw is not None and str(selected_raw).isdigit() else None
+            correct = q.get("answer")
+            options = q.get("options") or []
+            review.append({
+                "index": idx,
+                "question": q.get("question"),
+                "options": options,
+                "correct_index": correct,
+                "correct_option": options[correct] if isinstance(correct, int) and 0 <= correct < len(options) else None,
+                "selected_index": selected,
+                "selected_option": options[selected] if isinstance(selected, int) and 0 <= selected < len(options) else None,
+                "is_correct": selected is not None and selected == correct,
+                "explanation": q.get("explanation") or "",
+            })
+        return review
 
 
 class EmailOTP(db.Model):
@@ -411,3 +462,111 @@ def compute_skill_level(score, total):
     if pct >= 40:
         return "Intermediate"
     return "Beginner"
+
+# ================= Advanced placement portal models =================
+
+class StudentPreference(db.Model):
+    __tablename__ = "student_preferences"
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True)
+    preferred_locations = db.Column(db.String(500), default="")
+    preferred_roles = db.Column(db.String(500), default="")
+    preferred_job_type = db.Column(db.String(40), default="")
+    work_mode = db.Column(db.String(30), default="Any")
+    target_ctc = db.Column(db.String(50), default="")
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    student = db.relationship("User", foreign_keys=[student_id])
+    def to_dict(self):
+        return {"preferred_locations":self.preferred_locations,"preferred_roles":self.preferred_roles,"preferred_job_type":self.preferred_job_type,"work_mode":self.work_mode,"target_ctc":self.target_ctc}
+
+
+class SavedDrive(db.Model):
+    __tablename__ = "saved_drives"
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    drive_id = db.Column(db.Integer, db.ForeignKey("drives.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    student = db.relationship("User", foreign_keys=[student_id])
+    drive = db.relationship("Drive", foreign_keys=[drive_id])
+    __table_args__ = (db.UniqueConstraint("student_id","drive_id",name="uq_saved_drive"),)
+
+
+class CompanyShortlist(db.Model):
+    __tablename__ = "company_shortlists"
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    note = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    company = db.relationship("User", foreign_keys=[company_id])
+    student = db.relationship("User", foreign_keys=[student_id])
+    __table_args__ = (db.UniqueConstraint("company_id","student_id",name="uq_company_shortlist"),)
+    def to_dict(self):
+        return {"id":self.id,"student_id":self.student_id,"student_name":self.student.name if self.student else "","branch":self.student.student_profile.branch if self.student and self.student.student_profile else "","cgpa":self.student.student_profile.cgpa if self.student and self.student.student_profile else 0,"note":self.note,"created_at":self.created_at.strftime("%d %b %Y")}
+
+
+class Offer(db.Model):
+    __tablename__ = "offers"
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    drive_id = db.Column(db.Integer, db.ForeignKey("drives.id"), nullable=True)
+    package_offered = db.Column(db.String(80), default="")
+    designation = db.Column(db.String(150), default="")
+    joining_date = db.Column(db.String(40), default="")
+    status = db.Column(db.String(30), default="Offered")  # Offered / Accepted / Declined / Withdrawn
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    company = db.relationship("User", foreign_keys=[company_id])
+    student = db.relationship("User", foreign_keys=[student_id])
+    drive = db.relationship("Drive", foreign_keys=[drive_id])
+    def to_dict(self):
+        return {"id":self.id,"student_id":self.student_id,"student_name":self.student.name if self.student else "","company_id":self.company_id,"company_name":self.company.company_profile.company_name if self.company and self.company.company_profile else "","drive_id":self.drive_id,"role":self.drive.role_title if self.drive else self.designation,"package_offered":self.package_offered,"designation":self.designation,"joining_date":self.joining_date,"status":self.status,"created_at":self.created_at.strftime("%d %b %Y")}
+
+
+class AuditLog(db.Model):
+    __tablename__ = "audit_logs"
+    id = db.Column(db.Integer, primary_key=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    action = db.Column(db.String(100), nullable=False)
+    entity_type = db.Column(db.String(60), nullable=False)
+    entity_id = db.Column(db.String(80))
+    details = db.Column(db.Text, default="{}")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    actor = db.relationship("User", foreign_keys=[actor_id])
+    def to_dict(self):
+        try: details=json.loads(self.details or "{}")
+        except Exception: details={}
+        return {"id":self.id,"actor":self.actor.name if self.actor else "System","action":self.action,"entity_type":self.entity_type,"entity_id":self.entity_id,"details":details,"created_at":self.created_at.strftime("%d %b %Y, %I:%M %p")}
+
+
+class InterviewFeedback(db.Model):
+    __tablename__ = "interview_feedback"
+    id = db.Column(db.Integer, primary_key=True)
+    interview_id = db.Column(db.Integer, db.ForeignKey("interviews.id"), nullable=False, unique=True)
+    rating = db.Column(db.Integer, default=0)
+    technical = db.Column(db.Integer, default=0)
+    communication = db.Column(db.Integer, default=0)
+    problem_solving = db.Column(db.Integer, default=0)
+    comments = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    interview = db.relationship("Interview", foreign_keys=[interview_id])
+    def to_dict(self):
+        return {"id":self.id,"interview_id":self.interview_id,"rating":self.rating,"technical":self.technical,"communication":self.communication,"problem_solving":self.problem_solving,"comments":self.comments,"created_at":self.created_at.strftime("%d %b %Y")}
+
+
+class MockInterview(db.Model):
+    """A student's self-assessed mock-interview practice session."""
+    __tablename__ = "mock_interviews"
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    track = db.Column(db.String(40), nullable=False)
+    questions = db.Column(db.Integer, default=0)
+    avg_rating = db.Column(db.Float, default=0.0)      # 1-5 self rating
+    duration_sec = db.Column(db.Integer, default=0)
+    weak_topics = db.Column(db.String(255), default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {"id": self.id, "track": self.track, "questions": self.questions,
+                "avg_rating": round(self.avg_rating or 0, 2), "duration_sec": self.duration_sec,
+                "weak_topics": self.weak_topics, "created_at": self.created_at.strftime("%d %b %Y, %I:%M %p")}

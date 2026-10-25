@@ -1,0 +1,93 @@
+/* ============================================================
+   RGUKT logo loaders: full-screen preloader, top progress bar,
+   inline logo spinner, button spinners, view transitions.
+   ============================================================ */
+#rg-preloader {
+  position: fixed; inset: 0; z-index: 99999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg-0, #070c10); color: var(--text-primary, #e8eef2);
+  opacity: 1; visibility: visible;
+  transition: opacity .55s ease, visibility .55s ease, transform .55s ease;
+}
+#rg-preloader.is-hidden { opacity: 0; visibility: hidden; transform: scale(1.03); pointer-events: none; }
+/* If JS fails for any reason, never trap the user behind the loader. */
+#rg-preloader { animation: rgFailsafe 0s linear 12s forwards; }
+@keyframes rgFailsafe { to { opacity: 0; visibility: hidden; pointer-events: none; } }
+
+.rg-pl-glow {
+  position: absolute; width: 520px; height: 520px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,162,74,.20), transparent 62%);
+  animation: rgBreathe 3s ease-in-out infinite;
+}
+.rg-pl-stage { position: relative; width: 148px; height: 148px; display: grid; place-items: center; }
+.rg-pl-logo {
+  width: 92px; height: 92px; object-fit: contain; z-index: 2;
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,.45));
+  animation: rgLogoPulse 2s ease-in-out infinite;
+}
+.rg-pl-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, var(--accent-orange, #c9a24a) 85%, #fff4cf 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  animation: rgSpin 1.15s linear infinite;
+}
+.rg-pl-ring-2 {
+  inset: 12px; opacity: .55; animation-duration: 1.9s; animation-direction: reverse;
+  background: conic-gradient(from 0deg, transparent 0 60%, var(--accent-blue, #4fa3b8) 100%);
+}
+.rg-pl-title { margin-top: 26px; font-family: 'Fraunces', Georgia, serif; font-size: 1.55rem; font-weight: 600; letter-spacing: .02em; z-index: 2; }
+.rg-pl-sub { margin-top: 4px; font-size: .78rem; letter-spacing: .22em; text-transform: uppercase; color: var(--text-muted, #8a99a3); z-index: 2; }
+.rg-pl-bar { margin-top: 26px; width: 190px; height: 3px; border-radius: 3px; background: var(--border, rgba(255,255,255,.1)); overflow: hidden; z-index: 2; }
+.rg-pl-bar span { display: block; height: 100%; width: 40%; border-radius: 3px; background: linear-gradient(90deg, transparent, var(--accent-orange, #c9a24a), transparent); animation: rgSlide 1.25s ease-in-out infinite; }
+.rg-pl-msg { margin-top: 14px; font-size: .8rem; color: var(--text-muted, #8a99a3); z-index: 2; min-height: 1em; }
+
+@keyframes rgSpin { to { transform: rotate(360deg); } }
+@keyframes rgSlide { 0% { transform: translateX(-120%); } 100% { transform: translateX(330%); } }
+@keyframes rgBreathe { 0%,100% { transform: scale(.92); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
+@keyframes rgLogoPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+
+/* ---- Top progress bar (any API call / view change in progress) ---- */
+#rg-topbar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 99998; pointer-events: none; opacity: 0; transition: opacity .25s; }
+#rg-topbar.is-active { opacity: 1; }
+#rg-topbar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent-orange, #c9a24a), #fff4cf, var(--accent-blue, #4fa3b8)); box-shadow: 0 0 10px var(--accent-orange, #c9a24a); transition: width .4s ease; }
+
+/* ---- Inline spinner: every existing <div class="spinner"> becomes the RGUKT logo spinner ---- */
+.spinner {
+  position: relative; width: 44px; height: 44px; border: 0 !important; border-radius: 50%;
+  background: url('/static/images/rgukt-logo.png') center / 58% no-repeat;
+  animation: rgLogoPulse 1.6s ease-in-out infinite !important;
+}
+.spinner::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, var(--accent-orange, #c9a24a) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  animation: rgSpin .9s linear infinite;
+}
+.loading-row { flex-direction: column; }
+.loading-row::after { content: "Loading…"; font-size: .8rem; letter-spacing: .04em; }
+
+/* ---- Buttons ---- */
+.btn.is-loading { position: relative; pointer-events: none; color: transparent !important; }
+.btn.is-loading > * { visibility: hidden; }
+.btn.is-loading::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+  border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: rgSpin .7s linear infinite;
+}
+.btn-outline.is-loading::after, .btn-ghost.is-loading::after { border-color: var(--border, rgba(255,255,255,.2)); border-top-color: var(--accent-orange, #c9a24a); }
+
+/* ---- View transitions + skeleton shimmer ---- */
+.view-section.active { animation: rgViewIn .38s cubic-bezier(.2,.7,.2,1); }
+@keyframes rgViewIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.rg-skeleton { position: relative; overflow: hidden; background: var(--surface-muted, rgba(255,255,255,.05)); border-radius: 10px; }
+.rg-skeleton::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent); animation: rgShimmer 1.3s infinite; }
+@keyframes rgShimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* ---- Page-leave veil (shown on in-site navigation) ---- */
+#rg-preloader.is-leaving { transition-duration: .25s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rg-pl-ring, .rg-pl-ring-2, .rg-pl-glow, .rg-pl-logo, .spinner, .spinner::before, .rg-pl-bar span { animation-duration: 3s !important; }
+  .view-section.active { animation: none; }
+}
